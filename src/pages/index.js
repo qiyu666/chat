@@ -1,0 +1,6 @@
+export { default as ContactsPage } from './pages/ContactsPage'
+export { default as ChatPage } from './pages/ChatPage'
+export { default as MomentsPage } from './pages/MomentsPage'
+export { default as ProfilePage } from './pages/ProfilePage'
+export { default as LoginPage } from './pages/LoginPage'
+export { default as RegisterPage } from './pages/RegisterPage'
