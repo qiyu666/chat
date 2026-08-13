@@ -8,7 +8,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3456',
+        target: 'https://chat-api.3270581950.workers.dev',
         changeOrigin: true
       }
     }
