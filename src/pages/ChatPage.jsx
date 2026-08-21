@@ -290,7 +290,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   const renderOpenPacket = () => {
     if (!viewingPacketId) return null
     // 优先用消息列表中的最新数据，如果找不到则用缓存数据（防止loadMessages后丢失）
-    const msg = messages.find(m => m._redPacketId === viewingPacketId) || packetOpenData
+    const msg = messages.find(m => m.redPacketId === viewingPacketId) || packetOpenData
     if (!msg) return null
     const { amount, blessing } = parsePacketMsg(msg)
 
