@@ -548,7 +548,7 @@ async function handleRequest(req, env) {
     if (path.startsWith('/api/wallet/redpacket/') && path.endsWith('/claim') && method === 'POST') {
       const err = requireAuth()
       if (err) return err
-      const packetId = path.split('/')[3]
+      const packetId = path.split('/')[4]
       const packet = await DB.prepare('SELECT * FROM red_packets WHERE id = ?').bind(packetId).first()
       if (!packet) return respondError('红包不存在')
       if (packet.status !== 'open') return respondError('红包已被领取')
