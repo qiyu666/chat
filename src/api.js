@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+const API_BASE = 'https://chat-api.aiit.cc.cd'
 
 const api = {
   async request(method, path, body = null) {
