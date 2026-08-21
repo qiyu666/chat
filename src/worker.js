@@ -257,10 +257,14 @@ async function handleRequest(req, env) {
       if (err) return err
       const chatId = path.split('/')[3]
       const msgs = await DB.prepare(
-        `SELECT m.*, u.username as sender_name, rp.id as redPacketId FROM messages m
-         LEFT JOIN red_packets rp ON rp.message_id = m.id AND rp.status = 'open'
+        `SELECT m.*, u.username as sender_name,
+                COALESCE(
+                  (SELECT id FROM red_packets rp WHERE rp.message_id = m.id AND rp.status = 'open' LIMIT 1),
+                  (SELECT id FROM red_packets rp WHERE rp.sender_id = m.sender_id AND rp.amount = CAST(ROUND(REPLACE(SUBSTR(m.content, INSTR(m.content, '¥') + 1), '¥', ''), 2) AS REAL) AND rp.status = 'open' AND rp.message_id IS NULL AND rp.created_at <= m.created_at ORDER BY rp.created_at DESC LIMIT 1)
+                ) as redPacketId
+         FROM messages m
          JOIN users u ON m.sender_id = u.id
-         WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
+         WHERE m.chat_id = ? AND m.content LIKE '🧧%' ORDER BY m.created_at ASC LIMIT 100`
       ).bind(chatId).all()
       return respond({ messages: msgs.results || [] })
     }
