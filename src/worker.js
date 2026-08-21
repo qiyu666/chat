@@ -346,6 +346,13 @@ async function handleRequest(req, env) {
       await DB.prepare('DELETE FROM contacts WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)').bind(userId, req.sender_id, req.sender_id, userId).run()
       await DB.prepare('INSERT INTO contacts (id, user_id, friend_id) VALUES (?, ?, ?)').bind(generateId(), userId, req.sender_id).run()
       await DB.prepare('INSERT INTO contacts (id, user_id, friend_id) VALUES (?, ?, ?)').bind(generateId(), req.sender_id, userId).run()
+      const existingChat = await DB.prepare(
+        `SELECT id FROM chats WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)`
+      ).bind(userId, req.sender_id, req.sender_id, userId).first()
+      if (!existingChat) {
+        const chatId = generateId()
+        await DB.prepare('INSERT INTO chats (id, user1_id, user2_id) VALUES (?, ?, ?)').bind(chatId, userId, req.sender_id).run()
+      }
       await DB.prepare('DELETE FROM friend_requests WHERE id = ?').bind(requestId).run()
       return respond({ success: true })
     }
