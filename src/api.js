@@ -1,4 +1,4 @@
-const API_BASE = 'https://chat-api.aiit.cc.cd'
+const API_BASE = 'https://chat-api.aiit.cc.cd/api'
 
 const api = {
   async request(method, path, body = null) {
