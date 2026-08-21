@@ -355,7 +355,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
       onDragLeave={(e) => {
         if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false)
       }}
-      onDrop={(e) => {
+      onDrop={async (e) => {
         e.preventDefault()
         setDragOver(false)
         const file = e.dataTransfer?.files?.[0]
