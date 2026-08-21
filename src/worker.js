@@ -524,7 +524,6 @@ async function handleRequest(req, env) {
       if (err) return err
       const body = await req.json()
       const { amount, chatId, message, password } = body
-      console.log('[redpacket] chatId:', chatId, 'amount:', amount)
       const numAmount = parseFloat(amount)
       if (!numAmount || numAmount <= 0) return respondError('金额必须大于0')
       if (!password) return respondError('请提供支付密码')

@@ -178,7 +178,6 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
       })
       await loadMessages()
     } catch (e) {
-      console.error('[sendPacket] error:', e)
       setPacketPwdError(e.message || '发送失败')
     } finally {
       setSendingPacket(false)
