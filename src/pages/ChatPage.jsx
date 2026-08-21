@@ -212,7 +212,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
 
   // 点击红包气泡 → 打开全屏开红包界面
   const handleOpenPacket = (msg) => {
-    const packetId = msg._redPacketId
+    const packetId = msg.redPacketId || msg._redPacketId
     if (!packetId || msg._claimed) return
     setViewingPacketId(packetId)
     setPacketOpenAnim(false)
