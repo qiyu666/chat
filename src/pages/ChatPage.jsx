@@ -659,8 +659,8 @@ const styles = {
   },
   packetBubbleClickable: { cursor: 'pointer' },
   packetBubbleClaimed: {
-    opacity: 0.45,
-    filter: 'grayscale(60%)',
+    background: '#2a2a3a',
+    boxShadow: 'none',
   },
   packetBubbleInner: {
     display: 'flex',
