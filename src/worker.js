@@ -264,7 +264,7 @@ async function handleRequest(req, env) {
                 ) as redPacketId
          FROM messages m
          JOIN users u ON m.sender_id = u.id
-         WHERE m.chat_id = ? AND m.content LIKE '🧧%' ORDER BY m.created_at ASC LIMIT 100`
+         WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
       ).bind(chatId).all()
       return respond({ messages: msgs.results || [] })
     }
