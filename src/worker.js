@@ -601,7 +601,8 @@ async function handleRequest(req, env) {
     }
 
     if (path.startsWith('/api/admin/users/') && path.endsWith('/balance') && method === 'PUT') {
-      const uid = path.split('/').pop()
+      const parts = path.split('/')
+      const uid = parts[parts.length - 2]
       const { balance } = await req.json()
       const user = await DB.prepare('SELECT id FROM users WHERE id = ?').bind(uid).first()
       if (!user) return respondError('用户不存在', 404)
