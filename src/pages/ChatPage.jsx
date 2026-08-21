@@ -157,25 +157,13 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     setPacketPwdError('')
     setSendingPacket(true)
     try {
-      const res = await api.wallet.sendRedPacket({ amount, chatId, message: packetMsg, password: packetPwd })
+      await api.wallet.sendRedPacket({ amount, chatId, message: packetMsg, password: packetPwd })
       setShowSendPacket(false)
       setPacketAmount('')
       setPacketMsg('')
       setPacketPwd('')
       setShowPacketPwd(false)
       setPacketPwdError('')
-      justSentRef.current = true
-      setMessages(prev => {
-        lastMsgCountRef.current = prev.length + 1
-        return [...prev, {
-          id: res.messageId,
-          _redPacketId: res.packetId,
-          sender_id: currentUser?.id,
-          senderUsername: res.senderUsername || currentUser?.username,
-          content: `🧧${amount.toFixed(2)}¥${packetMsg ? '：' + packetMsg : ''}`,
-          created_at: new Date().toISOString()
-        }]
-      })
       await loadMessages()
     } catch (e) {
       setPacketPwdError(e.message || '发送失败')
