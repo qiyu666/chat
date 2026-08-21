@@ -66,7 +66,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     } finally {
       setLoading(false)
     }
-  }, [effectiveChatId])
+  }, [effectiveChatId, contact?.id])
 
   useEffect(() => {
     loadMessages()
