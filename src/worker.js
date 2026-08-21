@@ -524,10 +524,11 @@ async function handleRequest(req, env) {
       if (err) return err
       const body = await req.json()
       const { amount, chatId, message, password } = body
+      console.log('[redpacket] chatId:', chatId, 'amount:', amount)
       const numAmount = parseFloat(amount)
       if (!numAmount || numAmount <= 0) return respondError('金额必须大于0')
       if (!password) return respondError('请提供支付密码')
-      const user = await DB.prepare('SELECT balance, payment_password FROM users WHERE id = ?').bind(userId).first()
+      const user = await DB.prepare('SELECT balance, payment_password, username FROM users WHERE id = ?').bind(userId).first()
       if (!user) return respondError('用户不存在')
       if (!user.payment_password) return respondError('请先设置支付密码')
       if (!(await verifyPassword(password, user.payment_password, JWT_SECRET))) return respondError('支付密码错误')
@@ -539,7 +540,10 @@ async function handleRequest(req, env) {
       const receiverId = chat.user1_id === userId ? chat.user2_id : chat.user1_id
       await DB.prepare('INSERT INTO red_packets (id, sender_id, receiver_id, amount, message, status) VALUES (?, ?, ?, ?, ?, ?)').bind(id, userId, receiverId, numAmount, message || null, 'open').run()
       await DB.prepare("INSERT INTO transactions (id, user_id, amount, type, description) VALUES (?, ?, ?, 'send', '发送红包')").bind(generateId(), userId, numAmount).run()
-      return respond({ success: true, packetId: id })
+      const packetContent = `🧧${numAmount.toFixed(2)}¥${message ? '：' + message : ''}`
+      const msgId = generateId()
+      await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content) VALUES (?, ?, ?, ?)').bind(msgId, chatId, userId, packetContent).run()
+      return respond({ success: true, packetId: id, messageId: msgId, senderUsername: user.username })
     }
 
     if (path.startsWith('/api/wallet/redpacket/') && path.endsWith('/claim') && method === 'POST') {
