@@ -261,7 +261,7 @@ async function handleRequest(req, env) {
          JOIN users u ON m.sender_id = u.id
          WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
       ).bind(chatId).all()
-      return respond({ messages: (msgs.results || []).map(m => ({ ...m, redPacketId: m.packet_id || null })) })
+      return respond({ messages: (msgs.results || []).map(m => ({ ...m, redPacketId: m.packet_id || null, senderUsername: m.sender_name })) })
     }
 
     if (path.startsWith('/api/chats/') && path.endsWith('/messages') && method === 'POST') {

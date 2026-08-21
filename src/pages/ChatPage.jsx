@@ -226,7 +226,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     try {
       const res = await api.wallet.claimRedPacket(viewingPacketId)
       const claimed = res.amount ?? parseFloat(msg.content.match(/¥([\d.]+)/)?.[1]) ?? 0
-      setClaimedResult({ amount: claimed, senderUsername: msg.sender_name, blessing: msg.content.includes('：') ? msg.content.split('：')[1] : '' })
+      setClaimedResult({ amount: claimed, senderUsername: msg.senderUsername, blessing: msg.content.includes('：') ? msg.content.split('：')[1] : '' })
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, claimed: true } : m))
       await loadMessages()
     } catch (e) {
