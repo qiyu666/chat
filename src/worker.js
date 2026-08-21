@@ -631,6 +631,16 @@ async function handleRequest(req, env) {
       })) })
     }
 
+    if (path.startsWith('/api/chats/') && path.endsWith('/clear') && method === 'DELETE') {
+      const err = requireAuth()
+      if (err) return err
+      const chatId = path.split('/')[3]
+      const chat = await DB.prepare('SELECT id FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').bind(chatId, userId, userId).first()
+      if (!chat) return respondError('聊天不存在或无权操作', 404)
+      await DB.prepare('DELETE FROM messages WHERE chat_id = ?').bind(chatId).run()
+      return respond({ success: true })
+    }
+
     if (path.startsWith('/api/admin/messages/') && method === 'DELETE') {
       const chatId = path.split('/').pop()
       await DB.prepare('DELETE FROM messages WHERE chat_id = ?').bind(chatId).run()

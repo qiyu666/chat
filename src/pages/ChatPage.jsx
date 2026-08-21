@@ -140,7 +140,14 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   }
 
   const handleSendPacket = async () => {
-    if (!packetAmount.trim() || !effectiveChatId) return
+    if (!packetAmount.trim()) return
+    let chatId = effectiveChatId
+    if (!chatId) {
+      const friendId = contact?.id
+      if (!friendId) return
+      const r = await api.request('POST', '/chats', { friendId })
+      chatId = r.chatId
+    }
     const amount = parseFloat(packetAmount)
     if (!amount || amount <= 0) return
     if (!packetPwd || !/^\d{6}$/.test(packetPwd)) {
@@ -150,13 +157,25 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     setPacketPwdError('')
     setSendingPacket(true)
     try {
-      await api.wallet.sendRedPacket({ amount, chatId: effectiveChatId, message: packetMsg, password: packetPwd })
+      const res = await api.wallet.sendRedPacket({ amount, chatId, message: packetMsg, password: packetPwd })
       setShowSendPacket(false)
       setPacketAmount('')
       setPacketMsg('')
       setPacketPwd('')
       setShowPacketPwd(false)
       setPacketPwdError('')
+      justSentRef.current = true
+      setMessages(prev => {
+        lastMsgCountRef.current = prev.length + 1
+        return [...prev, {
+          id: res.messageId,
+          _redPacketId: res.packetId,
+          sender_id: currentUser?.id,
+          senderUsername: res.senderUsername || currentUser?.username,
+          content: `🧧${amount.toFixed(2)}¥${packetMsg ? '：' + packetMsg : ''}`,
+          created_at: new Date().toISOString()
+        }]
+      })
       await loadMessages()
     } catch (e) {
       setPacketPwdError(e.message || '发送失败')
@@ -400,6 +419,15 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
           <span style={styles.contactName}>{contact.username}</span>
         </div>
         <div style={styles.headerActions}>
+          <button style={styles.iconBtn} title="清除消息" onClick={async () => {
+            if (!confirm('确定要清除与 ' + contact.username + ' 的所有消息吗？')) return
+            try {
+              await api.request('DELETE', `/chats/${effectiveChatId}/clear`)
+              setMessages([])
+            } catch (e) {
+              alert(e.message || '清除失败')
+            }
+          }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
           <button style={styles.iconBtn}><Phone size={20} /></button>
           <button style={styles.iconBtn}><Video size={20} /></button>
         </div>

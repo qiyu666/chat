@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "description": "Routes for Chat Pages deployment",
+  "routes": [
+    {
+      "pattern": "*/api/*",
+      "serving_stack": "fallback"
+    }
+  ]
+}
