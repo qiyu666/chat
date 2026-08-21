@@ -431,7 +431,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
           </div>
         ) : (
           messages.map((msg) => {
-            const packetId = msg._redPacketId
+            const packetId = msg.redPacketId || msg._redPacketId
             if (packetId) {
               return renderPacketBubble(msg)
             }

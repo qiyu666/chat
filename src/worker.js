@@ -257,7 +257,13 @@ async function handleRequest(req, env) {
       if (err) return err
       const chatId = path.split('/')[3]
       const msgs = await DB.prepare(
-        `SELECT m.*, u.username as sender_name FROM messages m
+        `SELECT m.*, u.username as sender_name,
+                (SELECT id FROM red_packets r
+                 WHERE r.chat_id = m.chat_id AND r.sender_id = m.sender_id
+                 AND r.created_at <= m.created_at
+                 ORDER BY r.created_at DESC LIMIT 1
+                ) as redPacketId
+         FROM messages m
          JOIN users u ON m.sender_id = u.id
          WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
       ).bind(chatId).all()
@@ -537,7 +543,7 @@ async function handleRequest(req, env) {
       const chat = await DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
       if (!chat) return respondError('聊天不存在')
       const receiverId = chat.user1_id === userId ? chat.user2_id : chat.user1_id
-      await DB.prepare('INSERT INTO red_packets (id, sender_id, receiver_id, amount, message, status) VALUES (?, ?, ?, ?, ?, ?)').bind(id, userId, receiverId, numAmount, message || null, 'open').run()
+      await DB.prepare('INSERT INTO red_packets (id, sender_id, receiver_id, amount, message, status, chat_id) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(id, userId, receiverId, numAmount, message || null, 'open', chatId).run()
       await DB.prepare("INSERT INTO transactions (id, user_id, amount, type, description) VALUES (?, ?, ?, 'send', '发送红包')").bind(generateId(), userId, numAmount).run()
       const packetContent = `🧧${numAmount.toFixed(2)}¥${message ? '：' + message : ''}`
       const msgId = generateId()
