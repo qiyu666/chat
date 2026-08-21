@@ -221,13 +221,13 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
 
   // 点击「開」按钮 → 执行领取，立即显示结果
   const handleTapOpen = async () => {
-    const msg = messages.find(m => m._redPacketId === viewingPacketId) || packetOpenData
+    const msg = messages.find(m => m.redPacketId === viewingPacketId) || packetOpenData
     if (!msg) { setViewingPacketId(null); return }
     try {
-      await api.wallet.claimRedPacket(viewingPacketId)
-      const claimed = parseFloat(msg.content.match(/¥([\d.]+)/)?.[1]) || 0
-      setClaimedResult({ amount: claimed, senderUsername: msg.senderUsername, blessing: msg.content.includes('：') ? msg.content.split('：')[1] : '' })
-      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, _claimed: true } : m))
+      const res = await api.wallet.claimRedPacket(viewingPacketId)
+      const claimed = res.amount ?? parseFloat(msg.content.match(/¥([\d.]+)/)?.[1]) ?? 0
+      setClaimedResult({ amount: claimed, senderUsername: msg.sender_name, blessing: msg.content.includes('：') ? msg.content.split('：')[1] : '' })
+      setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, claimed: true } : m))
       await loadMessages()
     } catch (e) {
       alert(e.message || '领取失败')
