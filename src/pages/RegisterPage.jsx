@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import api from '../api'
 
 export default function RegisterPage({ onSwitch }) {
-  const { register } = useApp()
+  const { register, updatePaymentPasswordStatus, loading, user } = useApp()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
@@ -47,9 +47,9 @@ export default function RegisterPage({ onSwitch }) {
   }
 
   const handleSetPassword = async () => {
-    setSetError('')
+    setPayPwdError('')
     if (!payPwd || !/^\d{6}$/.test(payPwd)) {
-      setSetError('支付密码必须为6位数字')
+      setPayPwdError('支付密码必须为6位数字')
       return
     }
     if (setStep === 1) {
@@ -57,7 +57,7 @@ export default function RegisterPage({ onSwitch }) {
       return
     }
     if (payPwd !== payPwdConfirm) {
-      setSetError('两次输入的密码不一致')
+      setPayPwdError('两次输入的密码不一致')
       return
     }
     setSettingPwd(true)
@@ -66,20 +66,33 @@ export default function RegisterPage({ onSwitch }) {
       setShowPwdModal(false)
       updatePaymentPasswordStatus(true)
     } catch (e) {
-      setSetError(e.message || '设置失败')
+      setPayPwdError(e.message || '设置失败')
     } finally {
       setSettingPwd(false)
     }
   }
 
-  if (registered) {
+  if (registered || user) {
+    const currentUser = user || JSON.parse(localStorage.getItem('user'))
     return (
       <div style={styles.container}>
         <div style={styles.header}>
-          <div style={styles.logo}>📝</div>
+          <div style={styles.logo}>✅</div>
           <h1 style={styles.title}>注册成功！</h1>
           <p style={styles.subtitle}>请先设置支付密码以启用钱包功能</p>
         </div>
+        {currentUser && (
+          <div style={styles.userInfo}>
+            <div style={styles.infoRow}>
+              <span style={styles.infoLabel}>用户名</span>
+              <span style={styles.infoValue}>{currentUser.username}</span>
+            </div>
+            <div style={styles.infoRow}>
+              <span style={styles.infoLabel}>chat 号</span>
+              <span style={styles.infoValue}>{currentUser.chat_code || '—'}</span>
+            </div>
+          </div>
+        )}
         <button onClick={() => setShowPwdModal(true)} style={styles.btnPrimary}>设置支付密码</button>
         <p style={styles.switch}>
           已有账号？<button type="button" onClick={onSwitch} style={styles.link}>去登录</button>
@@ -195,7 +208,9 @@ export default function RegisterPage({ onSwitch }) {
 
         {error && <p style={styles.error}>{error}</p>}
 
-        <button type="submit" style={styles.btnPrimary}>注册</button>
+        <button type="submit" style={{ ...styles.btnPrimary, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+          {loading ? '注册中...' : '注册'}
+        </button>
 
         <p style={styles.switch}>
           已有账号？<button type="button" onClick={onSwitch} style={styles.link}>去登录</button>
@@ -265,6 +280,15 @@ const styles = {
     color: '#6c6c80'
   },
   link: { color: '#e94560', fontWeight: 600 },
+  userInfo: {
+    width: '100%', maxWidth: 320, background: '#0f0f1a', borderRadius: 12, padding: '16px 20px', marginBottom: 16
+  },
+  infoRow: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '8px 0', borderBottom: '1px solid #2a2a4a'
+  },
+  infoLabel: { fontSize: 13, color: '#6c6c80' },
+  infoValue: { fontSize: 14, color: '#fff', fontWeight: 600 },
   // 支付密码弹窗
   modalOverlay: {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',

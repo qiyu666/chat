@@ -261,7 +261,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
             </div>
           </div>
         </div>
-        {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username[0]?.toUpperCase()}</div>}
+        {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username?.[0]?.toUpperCase()}</div>}
       </div>
     )
   }
@@ -377,7 +377,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
           <ArrowLeft size={22} />
         </button>
         <div style={styles.contactInfo}>
-          <div style={styles.avatar}>{contact.username[0]?.toUpperCase()}</div>
+          <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
           <span style={styles.contactName}>{contact.username}</span>
         </div>
         <div style={styles.headerActions}>
@@ -415,7 +415,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
                   <div style={self ? styles.imageWrapSelf : styles.imageWrapOther}>
                     <img src={msg.content} alt="" style={styles.imageMsg} loading="lazy" />
                   </div>
-                  {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username[0]?.toUpperCase()}</div>}
+                  {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username?.[0]?.toUpperCase()}</div>}
                 </div>
               )
             }
@@ -425,7 +425,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
                 <div style={{ ...styles.bubble, ...(self ? styles.bubbleSelf : styles.bubbleOther) }}>
                   {msg.content}
                 </div>
-                {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username[0]?.toUpperCase()}</div>}
+                {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username?.[0]?.toUpperCase()}</div>}
               </div>
             )
           })

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Search, Plus, UserPlus, Bell, Trash2 } from 'lucide-react'
+import { Search, Plus, UserPlus, Bell, MessageCircle, MoreVertical } from 'lucide-react'
 import ChatPage from './ChatPage'
 import api from '../api'
 
@@ -9,20 +9,20 @@ export default function ContactsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddFriend, setShowAddFriend] = useState(false)
   const [showRequests, setShowRequests] = useState(false)
-  const [friendUsername, setFriendUsername] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [adding, setAdding] = useState(false)
+  const [openMenuId, setOpenMenuId] = useState(null)
+  const [hasSearched, setHasSearched] = useState(false)
   const [pendingRequests, setPendingRequests] = useState([])
   const [sendingRequest, setSendingRequest] = useState(null)
   const [sendStatus, setSendStatus] = useState({})
-  const [clearingChatId, setClearingChatId] = useState(null)
 
   useEffect(() => {
     loadContacts()
     loadPendingRequests()
   }, [])
 
-  // 每 3 秒轮询好友请求
   useEffect(() => {
     const interval = setInterval(() => {
       loadPendingRequests()
@@ -34,48 +34,43 @@ export default function ContactsPage() {
   const loadContacts = async () => {
     try {
       const data = await api.contacts.list()
-      setContacts(data.contacts || [])
-    } catch (e) {}
+      setContacts(Array.isArray(data) ? data : (data.contacts || []))
+    } catch (e) {
+      console.error('[DEBUG] loadContacts error:', e.message || e)
+    }
   }
 
   const loadPendingRequests = async () => {
     try {
       const data = await api.friendRequests.incoming()
       setPendingRequests(data.requests || [])
-    } catch (e) {}
-  }
-
-  const handleClearChat = async (contact) => {
-    if (!contact.chatId) return
-    try {
-      const msgs = await api.messages.get(contact.chatId)
-      const count = (msgs.messages || []).length
-      if (!window.confirm(`确定要清除与 ${contact.username} 的 ${count} 条消息吗？`)) return
-    } catch (e) {}
-    setClearingChatId(contact.chatId)
-    try {
-      await api.messages.clearChat(contact.chatId)
-      setContacts(prev => prev.map(c =>
-        c.chatId === contact.chatId ? { ...c, lastMessage: '', unread: 0 } : c
-      ))
     } catch (e) {
-      alert('清除失败')
-    } finally {
-      setClearingChatId(null)
+      console.error('[DEBUG] loadPending error:', e.message || e)
     }
   }
 
   const filtered = contacts.filter(c =>
-    c.username.toLowerCase().includes(searchTerm.toLowerCase())
+    (c.username || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const handleSearchUser = async () => {
-    if (!friendUsername.trim()) return
+    console.log('[SEARCH] button clicked, input:', searchInput)
+    if (!searchInput.trim()) return
     setAdding(true)
     try {
-      const data = await api.contacts.searchUser(friendUsername.trim())
+      console.log('[SEARCH] calling getByChatCode:', searchInput.trim())
+      const codeData = await api.users.getByChatCode(searchInput.trim())
+      console.log('[SEARCH] getByChatCode result:', codeData)
+      if (codeData.user) {
+        setSearchResults([codeData.user])
+        return
+      }
+      console.log('[SEARCH] fallback to searchUser:', searchInput.trim())
+      const data = await api.contacts.searchUser(searchInput.trim())
+      console.log('[SEARCH] searchUser result:', data)
       setSearchResults(data.users || [])
     } catch (e) {
+      console.error('[SEARCH] error:', e.message || e)
       setSearchResults([])
     } finally {
       setAdding(false)
@@ -83,23 +78,44 @@ export default function ContactsPage() {
   }
 
   const handleAddFriend = async (user) => {
-    setSendingRequest(user.username)
-    setSendStatus(prev => ({ ...prev, [user.username]: 'sending' }))
+    setSendingRequest(user.chat_code || user.username)
+    setSendStatus(prev => ({ ...prev, [user.chat_code || user.username]: 'sending' }))
     try {
-      const result = await api.friendRequests.send(user.username)
-      setSendStatus(prev => ({ ...prev, [user.username]: 'sent' }))
+      await api.friendRequests.send(user.username, user.chat_code)
+      setSendStatus(prev => ({ ...prev, [user.chat_code || user.username]: 'sent' }))
       setTimeout(() => {
         setShowAddFriend(false)
-        setFriendUsername('')
+        setSearchInput('')
         setSearchResults([])
         setSendStatus({})
       }, 1200)
     } catch (e) {
-      setSendStatus(prev => ({ ...prev, [user.username]: 'error' }))
+      setSendStatus(prev => ({ ...prev, [user.chat_code || user.username]: 'error' }))
       setTimeout(() => setSendStatus({}), 2000)
     } finally {
       setSendingRequest(null)
     }
+  }
+
+  const handleDeleteContact = async (contactId) => {
+    if (!confirm('确定删除该好友？')) return
+    setOpenMenuId(null)
+    try {
+      console.log('[DELETE] deleting contact:', contactId)
+      await api.contacts.deleteContact(contactId)
+      console.log('[DELETE] request succeeded, reloading contacts...')
+      await loadContacts()
+      console.log('[DELETE] current contacts:', contacts.length)
+    } catch (e) {
+      console.error('[DELETE] error:', e.message || e)
+    }
+  }
+
+  const handleBlockContact = async (contactId) => {
+    if (!confirm('确定拉黑该用户？拉黑后对方将无法给你发送消息或好友请求。')) return
+    setOpenMenuId(null)
+    await api.contacts.blockContact(contactId)
+    loadContacts()
   }
 
   const handleAccept = async (reqId) => {
@@ -107,7 +123,9 @@ export default function ContactsPage() {
       await api.friendRequests.accept(reqId)
       setPendingRequests(prev => prev.filter(r => r.id !== reqId))
       await loadContacts()
-    } catch (e) {}
+    } catch (e) {
+      console.error('[DEBUG] accept error:', e.message || e)
+    }
   }
 
   const handleReject = async (reqId) => {
@@ -159,36 +177,29 @@ export default function ContactsPage() {
         ) : (
           filtered.map(contact => (
             <div key={contact.id} style={styles.contactItemWrapper}>
-              <button onClick={() => setActiveChat(contact)} style={styles.contactItem}>
-                <div style={styles.avatar}>{contact.username[0]?.toUpperCase()}</div>
-                <div style={styles.contactText}>
-                  <span style={styles.contactName}>{contact.username}</span>
-                  {contact.lastMessage && (
-                    <span style={styles.lastMsg}>{contact.lastMessage}</span>
-                  )}
-                </div>
-                {contact.unread > 0 && (
-                  <div style={styles.badge}>{contact.unread}</div>
-                )}
+              <div style={styles.contactItem}>
+                <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
+                <span style={styles.contactName}>{contact.username}</span>
+              </div>
+              <button onClick={() => setActiveChat(contact)} style={styles.chatBtn} title="发送消息">
+                <MessageCircle size={18} />
               </button>
-              {contact.chatId && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleClearChat(contact) }}
-                  style={{
-                    ...styles.clearBtn,
-                    opacity: clearingChatId === contact.chatId ? 0.4 : 1
-                  }}
-                  disabled={clearingChatId === contact.chatId}
-                >
-                  {clearingChatId === contact.chatId ? '' : <Trash2 size={16} />}
+              <div style={styles.menuWrapper}>
+                <button style={styles.moreBtn} onClick={e => { e.stopPropagation(); setOpenMenuId(openMenuId === contact.id ? null : contact.id) }}>
+                  <MoreVertical size={18} />
                 </button>
-              )}
+                {openMenuId === contact.id && (
+                  <div style={styles.menuDropdown}>
+                    <button style={styles.menuItem} onClick={() => handleDeleteContact(contact.id)}>删除好友</button>
+                    <button style={styles.menuItem} onClick={() => handleBlockContact(contact.id)}>拉黑</button>
+                  </div>
+                )}
+              </div>
             </div>
           ))
         )}
       </div>
 
-      {/* 好友请求列表弹窗 */}
       {showRequests && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
@@ -214,34 +225,37 @@ export default function ContactsPage() {
         </div>
       )}
 
-      {/* 添加好友弹窗 */}
       {showAddFriend && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
             <div style={styles.modalHeader}>
               <span style={styles.modalTitle}>添加好友</span>
-              <button onClick={() => { setShowAddFriend(false); setSearchResults([]) }} style={styles.closeBtn}>✕</button>
+              <button onClick={() => { setShowAddFriend(false); setSearchResults([]); setHasSearched(false) }} style={styles.closeBtn}>✕</button>
             </div>
             <div style={styles.searchRow}>
               <input
                 style={styles.modalInput}
-                placeholder="输入用户名搜索..."
-                value={friendUsername}
-                onChange={e => setFriendUsername(e.target.value)}
+                placeholder="输入用户名或chat号搜索..."
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearchUser()}
               />
-              <button onClick={handleSearchUser} style={styles.searchBtn} disabled={adding}>
+              <button onClick={() => { console.log('[CLICK] search button clicked'); handleSearchUser() }} style={styles.searchBtn} disabled={adding}>
                 {adding ? '...' : '搜索'}
               </button>
             </div>
             {searchResults.length > 0 && (
               <div style={styles.results}>
                 {searchResults.map(u => {
-                  const status = sendStatus[u.username]
+                  const key = u.chat_code || u.username
+                  const status = sendStatus[key]
                   return (
                     <div key={u.id} style={styles.userRow}>
-                      <div style={styles.avatar}>{u.username[0]?.toUpperCase()}</div>
-                      <span style={styles.username}>{u.username}</span>
+                      <div style={styles.avatar}>{u.username?.[0]?.toUpperCase()}</div>
+                      <div style={styles.userMeta}>
+                        <span style={styles.username}>{u.username}</span>
+                        {u.chat_code && <span style={styles.chatCodeTag}>chat号: {u.chat_code}</span>}
+                      </div>
                       {status === 'sent' ? (
                         <span style={styles.sentTag}>已发送请求</span>
                       ) : (
@@ -260,6 +274,9 @@ export default function ContactsPage() {
                   )
                 })}
               </div>
+            )}
+            {hasSearched && searchResults.length === 0 && !adding && (
+              <div style={styles.emptySmall}>未找到该用户，请确认用户名或 chat 号是否正确</div>
             )}
           </div>
         </div>
@@ -320,12 +337,8 @@ const styles = {
     alignItems: 'center',
     padding: '14px 16px',
     borderBottom: '1px solid #1a1a2e',
-    width: '100%',
-    textAlign: 'left',
-    gap: 12,
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer'
+    flex: 1,
+    gap: 12
   },
   contactItemWrapper: {
     display: 'flex',
@@ -344,33 +357,52 @@ const styles = {
     fontSize: 18,
     flexShrink: 0
   },
-  contactText: { flex: 1, overflow: 'hidden' },
-  contactName: { display: 'block', fontSize: 16, fontWeight: 500 },
-  lastMsg: { display: 'block', fontSize: 13, color: '#6c6c80', marginTop: 2 },
-  badge: {
-    background: '#e94560',
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 600,
-    padding: '2px 7px',
+  contactName: { fontSize: 16, fontWeight: 500, flex: 1 },
+  chatBtn: {
+    padding: '10px 14px',
+    marginRight: 8,
     borderRadius: 10,
-    flexShrink: 0
-  },
-  clearBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: '50%',
-    background: 'transparent',
-    border: '2px solid #e94560',
+    background: '#1a1a2e',
+    border: '1px solid #2a2a4a',
     color: '#e94560',
-    fontSize: 22,
-    lineHeight: '32px',
     cursor: 'pointer',
-    flexShrink: 0,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16
+    justifyContent: 'center'
+  },
+  menuWrapper: { position: 'relative' },
+  moreBtn: {
+    padding: '10px 12px',
+    borderRadius: 10,
+    background: 'transparent',
+    border: 'none',
+    color: '#6c6c80',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center'
+  },
+  menuDropdown: {
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    zIndex: 100,
+    background: '#1e1e3a',
+    border: '1px solid #2a2a4a',
+    borderRadius: 10,
+    minWidth: 120,
+    overflow: 'hidden',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+  },
+  menuItem: {
+    display: 'block',
+    width: '100%',
+    padding: '10px 16px',
+    background: 'transparent',
+    border: 'none',
+    color: '#c0c0d0',
+    fontSize: 14,
+    textAlign: 'left',
+    cursor: 'pointer'
   },
   modal: {
     position: 'fixed',
@@ -408,6 +440,8 @@ const styles = {
     color: '#fff',
     outline: 'none'
   },
+  userMeta: { flex: 1, minWidth: 0 },
+  chatCodeTag: { fontSize: 12, color: '#6c6c80', display: 'block', marginTop: 2 },
   searchBtn: {
     padding: '12px 20px',
     background: '#e94560',
@@ -443,7 +477,7 @@ const styles = {
     borderRadius: 8,
     color: '#4ade80',
     fontSize: 13,
-    fontWeight: 500
+    fontWeight: 50
   },
   reqRow: {
     display: 'flex',

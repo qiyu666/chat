@@ -5,3 +5,14 @@ dist/
 .env
 .env.*
 !.env.example
+data.json
+# temp build scripts
+build.js
+run-build.js
+pages.config.json
+scripts/bundle-worker*
+scripts/bunlder-*
+scripts/migration.sql
+src/worker-bundle.js
+src/worker-template.js
+src/worker-dashboard.js

@@ -1,0 +1,3 @@
+name = "chat"
+pages_build_output_dir = "dist"
+routes = ["**/*.js", "**/*.css", "**/*.svg", "**/*.png", "**/*.jpg"]

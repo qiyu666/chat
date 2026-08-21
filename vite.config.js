@@ -6,9 +6,10 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'https://chat-api.3270581950.workers.dev',
+        target: 'https://chat-api.aiit.cc.cd',
         changeOrigin: true
       }
     }

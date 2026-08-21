@@ -1,3 +1,4 @@
+export { default as ChatListPage } from './pages/ChatListPage'
 export { default as ContactsPage } from './pages/ContactsPage'
 export { default as ChatPage } from './pages/ChatPage'
 export { default as MomentsPage } from './pages/MomentsPage'

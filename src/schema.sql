@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
+  chat_code TEXT UNIQUE NOT NULL DEFAULT '',
   password_hash TEXT NOT NULL,
   balance REAL DEFAULT 100.00,
   avatar TEXT,
@@ -75,4 +76,13 @@ CREATE TABLE IF NOT EXISTS transactions (
   related_id TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS blocks (
+  blocker_id TEXT NOT NULL,
+  blocked_id TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now')),
+  PRIMARY KEY (blocker_id, blocked_id),
+  FOREIGN KEY (blocker_id) REFERENCES users(id),
+  FOREIGN KEY (blocked_id) REFERENCES users(id)
 );

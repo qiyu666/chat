@@ -15,7 +15,6 @@ export function AppProvider({ children }) {
         const u = JSON.parse(stored)
         setUser(u)
         setHasPaymentPassword(!!u.hasPaymentPassword)
-        if (u._token) localStorage.setItem('token', u._token)
       } catch (e) {
         localStorage.removeItem('user')
       }
@@ -43,10 +42,10 @@ export function AppProvider({ children }) {
     }
   }
 
-  const register = async (username, password) => {
+  const register = async (username, password, chat_code) => {
     setLoading(true)
     try {
-      const data = await import('./api').then(m => m.default).then(api => api.auth.register(username, password))
+      const data = await import('./api').then(m => m.default).then(api => api.auth.register(username, password, chat_code))
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
       setUser(data.user)
@@ -74,7 +73,6 @@ export function AppProvider({ children }) {
       if (stored) {
         const u = JSON.parse(stored)
         setUser(u)
-        if (u._token) localStorage.setItem('token', u._token)
         setHasPaymentPassword(!!u.hasPaymentPassword)
       }
     } catch (e) {}

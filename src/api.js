@@ -1,7 +1,9 @@
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
 const api = {
   async request(method, path, body = null) {
+    const url = `${API_BASE}${path}`
+    console.log('[API]', method, url)
     const options = {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -9,7 +11,14 @@ const api = {
     if (body) options.body = JSON.stringify(body)
     const token = localStorage.getItem('token')
     if (token) options.headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch(`${API_BASE}${path}`, options)
+    let res
+    try {
+      res = await fetch(url, options)
+      console.log('[API]', url, 'status:', res.status, 'headers:', [...res.headers.entries()].slice(0, 5).map(([k,v])=>`${k}=${v}`).join(', '))
+    } catch (e) {
+      console.error('[API] fetch failed:', e.name, e.message, url)
+      throw e
+    }
     const contentType = res.headers.get('content-type') || ''
     let data
     if (contentType.includes('application/json')) {
@@ -26,8 +35,8 @@ const api = {
     login(username, password) {
       return api.request('POST', '/auth/login', { username, password })
     },
-    register(username, password) {
-      return api.request('POST', '/auth/register', { username, password })
+    register(username, password, chat_code) {
+      return api.request('POST', '/auth/register', { username, password, chat_code })
     },
     getMe() {
       return api.request('GET', '/auth/me')
@@ -35,6 +44,15 @@ const api = {
     logout() {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
+    },
+    changePassword(oldPassword, newPassword) {
+      return api.request('PUT', '/auth/password', { oldPassword, newPassword })
+    },
+    updateChatCode(chat_code) {
+      return api.request('PUT', '/auth/chat_code', { chat_code })
+    },
+    deleteAccount(password) {
+      return api.request('DELETE', '/auth/account', { password })
     }
   },
 
@@ -47,12 +65,27 @@ const api = {
     },
     searchUser(username) {
       return api.request('GET', `/contacts/search?q=${encodeURIComponent(username)}`)
+    },
+    deleteContact(contactId) {
+      return api.request('DELETE', `/contacts/${contactId}`)
+    },
+    blockContact(contactId) {
+      return api.request('POST', `/contacts/block/${contactId}`)
+    },
+    unblockContact(contactId) {
+      return api.request('DELETE', `/contacts/block/${contactId}`)
+    }
+  },
+
+  users: {
+    getByChatCode(chat_code) {
+      return api.request('GET', `/users/chat_code/${encodeURIComponent(chat_code)}`)
     }
   },
 
   friendRequests: {
-    send(targetUsername) {
-      return api.request('POST', '/friend-requests/send', { targetUsername })
+    send(targetUsername, targetChatCode) {
+      return api.request('POST', '/friend-requests/send', { targetUsername, targetChatCode })
     },
     incoming() {
       return api.request('GET', '/friend-requests/incoming')
@@ -67,10 +100,10 @@ const api = {
 
   messages: {
     get(chatId) {
-      return api.request('GET', `/messages/${chatId}`)
+      return api.request('GET', `/chats/${chatId}/messages`)
     },
     send(chatId, content) {
-      return api.request('POST', `/messages/${chatId}/send`, { content })
+      return api.request('POST', `/chats/${chatId}/messages`, { content })
     },
     delete(messageId) {
       return api.request('DELETE', `/messages/${messageId}`)
@@ -101,6 +134,9 @@ const api = {
     },
     setPassword(password) {
       return api.request('POST', '/wallet/set-password', { password })
+    },
+    changePassword(oldPassword, newPassword) {
+      return api.request('PUT', '/wallet/password', { oldPassword, newPassword })
     },
     sendRedPacket({ amount, chatId, message, password }) {
       return api.request('POST', '/wallet/redpacket/send', { amount, chatId, message, password })

@@ -7,6 +7,7 @@
     "dev": "vite",
     "mock": "node mock-server.js",
     "build": "vite build",
+    "deploy": "npm run build && npx wrangler deploy",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -21,7 +22,7 @@
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
+    "@types/react-dom": "^19.2.17",
     "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.75.0",
     "vite": "^8.2.0",
