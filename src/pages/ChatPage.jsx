@@ -106,11 +106,18 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   }, [messages])
 
   const handleSend = async () => {
-    if (!input.trim() || !effectiveChatId) return
+    if (!input.trim()) return
     const content = input.trim()
+    let chatId = effectiveChatId
+    if (!chatId) {
+      const friendId = contact?.id
+      if (!friendId) return
+      const r = await api.request('POST', '/chats', { friendId })
+      chatId = r.chatId
+    }
     setInput('')
     try {
-      await api.messages.send(effectiveChatId, content)
+      await api.messages.send(chatId, content)
       justSentRef.current = true
       const currentUser = localStorage.getItem('user')
         ? JSON.parse(localStorage.getItem('user'))
@@ -162,11 +169,17 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    if (!effectiveChatId) return
+    let chatId = effectiveChatId
+    if (!chatId) {
+      const friendId = contact?.id
+      if (!friendId) return
+      const r = await api.request('POST', '/chats', { friendId })
+      chatId = r.chatId
+    }
     setSendingImage(true)
     try {
       const url = await uploadToImgbb(file)
-      await api.messages.send(effectiveChatId, url)
+      await api.messages.send(chatId, url)
       justSentRef.current = true
       const currentUser = localStorage.getItem('user')
         ? JSON.parse(localStorage.getItem('user'))
@@ -347,11 +360,17 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
         setDragOver(false)
         const file = e.dataTransfer?.files?.[0]
         if (!file || !file.type.startsWith('image/')) return
-        if (!effectiveChatId) return
+        let dragChatId = effectiveChatId
+        if (!dragChatId) {
+          const friendId = contact?.id
+          if (!friendId) return
+          const r = await api.request('POST', '/chats', { friendId })
+          dragChatId = r.chatId
+        }
         setSendingImage(true)
         let sentUrl = ''
         uploadToImgbb(file)
-          .then(url => { sentUrl = url; return api.messages.send(effectiveChatId, url) })
+          .then(url => { sentUrl = url; return api.messages.send(dragChatId, url) })
           .then(() => {
             justSentRef.current = true
             const currentUser = localStorage.getItem('user')
