@@ -75,7 +75,7 @@ async function handleRequest(req, env) {
   if (!JWT_SECRET) throw new Error('JWT_SECRET not configured')
 
   // 一次性建表，仅在表不存在时写入（首次部署后不再消耗读取）
-  await DB.exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, chat_code TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, balance REAL DEFAULT 100, payment_password TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS blocks (blocker_id TEXT NOT NULL, blocked_id TEXT NOT NULL, PRIMARY KEY (blocker_id, blocked_id));CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, sender_id TEXT NOT NULL, content TEXT, image_url TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL, description TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, images TEXT, like_count INTEGER DEFAULT 0, comment_count INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moment_likes (moment_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY (moment_id, user_id));CREATE TABLE IF NOT EXISTS moment_comments (id TEXT PRIMARY KEY, moment_id TEXT NOT NULL, user_id TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS red_packets (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, amount REAL NOT NULL, message TEXT, status TEXT DEFAULT 'open', claimed_at TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));`)
+  await DB.exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, chat_code TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, balance REAL DEFAULT 100, payment_password TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS blocks (blocker_id TEXT NOT NULL, blocked_id TEXT NOT NULL, PRIMARY KEY (blocker_id, blocked_id));CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, sender_id TEXT NOT NULL, content TEXT, image_url TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL, description TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, images TEXT, like_count INTEGER DEFAULT 0, comment_count INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moment_likes (moment_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY (moment_id, user_id));CREATE TABLE IF NOT EXISTS moment_comments (id TEXT PRIMARY KEY, moment_id TEXT NOT NULL, user_id TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS red_packets (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, amount REAL NOT NULL, message TEXT, status TEXT DEFAULT 'open', claimed_at TEXT, message_id TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));`)
 
   if (path === '/health') {
     return new Response(JSON.stringify({ ok: true }), {
@@ -257,22 +257,12 @@ async function handleRequest(req, env) {
       if (err) return err
       const chatId = path.split('/')[3]
       const msgs = await DB.prepare(
-        `SELECT m.*, u.username as sender_name FROM messages m
+        `SELECT m.*, u.username as sender_name, rp.id as redPacketId FROM messages m
+         LEFT JOIN red_packets rp ON rp.message_id = m.id AND rp.status = 'open'
          JOIN users u ON m.sender_id = u.id
          WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
       ).bind(chatId).all()
-      const results = msgs.results || []
-      const enriched = await Promise.all(results.map(async m => {
-        if (!m.content?.startsWith('🧧')) return m
-        const match = /¥([\d.]+)/.exec(m.content)
-        const amount = match ? parseFloat(match[1]) : null
-        if (!amount) return m
-        const packet = await DB.prepare(
-          `SELECT id FROM red_packets WHERE sender_id = ? AND amount = ? AND status = 'open' AND created_at <= ? ORDER BY created_at DESC LIMIT 1`
-        ).bind(m.sender_id, amount, m.created_at).first()
-        return { ...m, redPacketId: packet?.id || null }
-      }))
-      return respond({ messages: enriched })
+      return respond({ messages: msgs.results || [] })
     }
 
     if (path.startsWith('/api/chats/') && path.endsWith('/messages') && method === 'POST') {
