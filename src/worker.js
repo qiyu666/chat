@@ -541,7 +541,7 @@ async function handleRequest(req, env) {
       await DB.prepare("INSERT INTO transactions (id, user_id, amount, type, description) VALUES (?, ?, ?, 'send', '发送红包')").bind(generateId(), userId, numAmount).run()
       const packetContent = `🧧${numAmount.toFixed(2)}¥${message ? '：' + message : ''}`
       const msgId = generateId()
-      await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content) VALUES (?, ?, ?, ?)').bind(msgId, chatId, userId, packetContent).run()
+      await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content, packet_id) VALUES (?, ?, ?, ?, ?)').bind(msgId, chatId, userId, packetContent, id).run()
       return respond({ success: true, packetId: id, messageId: msgId, senderUsername: user.username })
     }
 
