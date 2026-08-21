@@ -431,14 +431,14 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
           </div>
         ) : (
           messages.map((msg) => {
-            const packetId = msg.redPacketId || msg._redPacketId
+            const packetId = msg.redPacketId
             if (packetId) {
               return renderPacketBubble(msg)
             }
             // 兜底：以 🧧 开头即为红包消息
             if (msg.content.startsWith('🧧')) {
               const fallbackPacketId = 'fallback_' + msg.id.slice(0, 8)
-              const fallbackMsg = { ...msg, _redPacketId: fallbackPacketId }
+              const fallbackMsg = { ...msg, redPacketId: fallbackPacketId }
               return renderPacketBubble(fallbackMsg)
             }
             const self = isSelf(msg.sender_id)
