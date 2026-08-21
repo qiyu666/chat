@@ -435,9 +435,9 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
             if (packetId) {
               return renderPacketBubble(msg)
             }
-            // 兜底：老格式红包消息检测
-            if (msg.content.startsWith('🧧') && msg.content.includes('红包')) {
-              const fallbackPacketId = 'legacy_' + msg.id.slice(0, 8)
+            // 兜底：以 🧧 开头即为红包消息
+            if (msg.content.startsWith('🧧')) {
+              const fallbackPacketId = 'fallback_' + msg.id.slice(0, 8)
               const fallbackMsg = { ...msg, _redPacketId: fallbackPacketId }
               return renderPacketBubble(fallbackMsg)
             }
