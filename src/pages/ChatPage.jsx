@@ -72,6 +72,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   useEffect(() => {
     loadMessages()
     lastMsgCountRef.current = 0
+    userScrolledUpRef.current = false
   }, [loadMessages])
 
   useEffect(() => {
