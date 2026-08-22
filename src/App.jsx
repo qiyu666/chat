@@ -44,14 +44,14 @@ function MainApp() {
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        {activeTab === 'chats' && <ChatListPage />}
+        {activeTab === 'chats' && <ChatListPage onChatOpen={setChatActive} />}
         {activeTab === 'contacts' && <ContactsPage />}
         {activeTab === 'moments' && <MomentsPage />}
         {activeTab === 'profile' && profileView === 'default' && <ProfilePage onNavigate={setProfileView} />}
         {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
       </div>
 
-      <div style={styles.tabBar}>
+      <div style={{ ...styles.tabBar, display: chatActive ? 'none' : 'flex' }}>
         {tabItems.map(tab => {
           const IconComp = tab.icon
           return (

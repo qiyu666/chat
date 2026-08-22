@@ -85,7 +85,7 @@ export default function ChatListPage() {
   }
 
   if (activeChat) {
-    return <ChatPage contact={activeChat} chatId={activeChat.chatId} onBack={() => setActiveChat(null)} />
+    return <ChatPage contact={activeChat} chatId={activeChat.chatId} onBack={() => { setActiveChat(null); onChatOpen?.(false) }} />
   }
 
   return (
@@ -123,7 +123,7 @@ export default function ChatListPage() {
         ) : (
           filtered.map(contact => (
             <div key={contact.id} style={styles.contactItemWrapper}>
-              <button onClick={() => setActiveChat(contact)} style={styles.contactItem}>
+              <button onClick={() => { setActiveChat(contact); onChatOpen?.(true) }} style={styles.contactItem}>
                 <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
                 <div style={styles.contactText}>
                   <span style={styles.contactName}>{contact.username}</span>
