@@ -15,11 +15,12 @@ export default function AdminPage({ onLogout }) {
   const [balInputs, setBalInputs] = useState({})
 
   const loadAll = async () => {
+    const BASE = 'https://chat-api.aiit.cc.cd/api'
     const [s, u, tx, c] = await Promise.all([
-      fetch('/api/admin/stats').then(r => r.json()),
-      fetch('/api/admin/users').then(r => r.json()),
-      fetch('/api/admin/transactions').then(r => r.json()),
-      fetch('/api/admin/chats').then(r => r.json())
+      fetch(`${BASE}/admin/stats`).then(r => r.json()),
+      fetch(`${BASE}/admin/users`).then(r => r.json()),
+      fetch(`${BASE}/admin/transactions`).then(r => r.json()),
+      fetch(`${BASE}/admin/chats`).then(r => r.json())
     ])
     setStats(s)
     setUsers(u.users || [])
@@ -34,7 +35,7 @@ export default function AdminPage({ onLogout }) {
     const num = parseFloat(val)
     if (isNaN(num)) return
     try {
-      await fetch(`/api/admin/users/${userId}/balance`, {
+      await fetch(`https://chat-api.aiit.cc.cd/api/admin/users/${userId}/balance`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ balance: num })
@@ -53,7 +54,7 @@ export default function AdminPage({ onLogout }) {
 
   const handleClearChat = async (chatId) => {
     try {
-      await fetch(`/api/admin/messages/${chatId}`, { method: 'DELETE' })
+      await fetch(`https://chat-api.aiit.cc.cd/api/admin/messages/${chatId}`, { method: 'DELETE' })
       loadAll()
     } catch (e) {}
   }
