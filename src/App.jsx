@@ -10,6 +10,7 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
 import ErrorBoundary from './ErrorBoundary'
 import { AppProvider, useApp } from './AppContext'
+import { NotificationService } from './utils/notifications'
 
 function MainApp() {
   const { user } = useApp()
@@ -19,6 +20,12 @@ function MainApp() {
   const [chatActive, setChatActive] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+
+  useEffect(() => {
+    if (user) {
+      NotificationService.init()
+    }
+  }, [user])
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 481)

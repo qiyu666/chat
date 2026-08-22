@@ -58,6 +58,14 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
           : null
         if (newMsg.sender_id !== currentUser) {
           setUnreadFromOther(c => c + 1)
+          const stored = localStorage.getItem('user')
+            ? JSON.parse(localStorage.getItem('user'))
+            : null
+          const senderName = newMsg.senderUsername || contact?.username || '新消息'
+          const preview = newMsg.content.length > 30
+            ? newMsg.content.slice(0, 30) + '...'
+            : newMsg.content
+          NotificationService.showNotification(preview, senderName)
         }
       }
       setMessages(newMsgs)

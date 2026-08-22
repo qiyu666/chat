@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, Bell, Trash2 } from 'lucide-react'
 import ChatPage from './ChatPage'
 import api from '../api'
+import { NotificationService } from '../utils/notifications'
 
 export default function ChatListPage() {
   const [chats, setChats] = useState([])
@@ -28,7 +29,26 @@ export default function ChatListPage() {
     try {
       const data = await api.contacts.list()
       const list = Array.isArray(data) ? data : (data.contacts || [])
-      // 只保留有聊天记录的会话，或全部都显示（微信风格会显示所有好友）
+      const prev = prevChatsRef.current
+      // 检测新消息通知
+      for (const contact of list) {
+        const prevContact = prev.find(p => p.id === contact.id)
+        if (prevContact) {
+          const prevLast = prevContact.lastMessage || ''
+          const curLast = contact.lastMessage || ''
+          if (curLast !== prevLast && contact.unread > 0) {
+            const preview = curLast.length > 30 ? curLast.slice(0, 30) + '...' : curLast
+            NotificationService.showNotification(preview, contact.username)
+          }
+        } else {
+          // 新联系人，检查是否有未读
+          if (contact.unread > 0 && contact.lastMessage) {
+            const preview = contact.lastMessage.length > 30 ? contact.lastMessage.slice(0, 30) + '...' : contact.lastMessage
+            NotificationService.showNotification(preview, contact.username)
+          }
+        }
+      }
+      prevChatsRef.current = list
       setChats(list)
     } catch (e) {
       console.error('[DEBUG] loadChats error:', e.message || e)
