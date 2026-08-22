@@ -1,6 +1,7 @@
 const IMGBB_API_KEY = '3968df9b249e7986e04256f3ede4df2f'
+const TIMEOUT_MS = 8000
 
-async function compressToBlob(file, maxWidth = 800) {
+async function compressToBlob(file, maxWidth = 600) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onloadend = () => {
@@ -17,7 +18,7 @@ async function compressToBlob(file, maxWidth = 800) {
         canvas.height = height
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0, width, height)
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8)
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.7)
           .catch(() => reject(new Error('图片压缩失败')))
       }
       img.onerror = () => reject(new Error('图片解析失败'))
@@ -31,35 +32,55 @@ async function compressToBlob(file, maxWidth = 800) {
 /**
  * 上传到 imgbb（外部服务，不依赖后端）
  */
-export async function uploadToImgbb(file, maxWidth = 800) {
+export async function uploadToImgbb(file, maxWidth = 600) {
   const blob = await compressToBlob(file, maxWidth)
   const form = new FormData()
   form.append('key', IMGBB_API_KEY)
   form.append('image', blob, 'upload.jpg')
-  const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: form })
-  if (!res.ok) throw new Error(`imgbb 返回 ${res.status}`)
-  const data = await res.json()
-  if (!data.success) throw new Error(data.error?.message || 'imgbb 上传失败')
-  return data.data.url
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+  try {
+    const res = await fetch('https://api.imgbb.com/1/upload', { method: 'POST', body: form, signal: controller.signal })
+    clearTimeout(timeout)
+    if (!res.ok) throw new Error(`imgbb 返回 ${res.status}`)
+    const data = await res.json()
+    if (!data.success) throw new Error(data.error?.message || 'imgbb 上传失败')
+    return data.data.url
+  } catch (e) {
+    clearTimeout(timeout)
+    throw e
+  }
 }
 
 /**
  * 优先上传到 imgbb，失败时降级到 D1（后端存储）
  */
-export async function uploadImage(file, maxWidth = 800) {
+export async function uploadImage(file, maxWidth = 600) {
   try {
     return await uploadToImgbb(file, maxWidth)
-  } catch {
+  } catch (e) {
     const blob = await compressToBlob(file, maxWidth)
+    if (blob.size > 500 * 1024) {
+      throw new Error('图片太大，请压缩后重新发送')
+    }
     const arrayBuffer = await blob.arrayBuffer()
     const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)))
-    const res = await fetch('/api/images', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data: base64, contentType: blob.type }),
-    })
-    if (!res.ok) throw new Error('图片上传失败')
-    const json = await res.json()
-    return json.url
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS)
+    try {
+      const res = await fetch('/api/images', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: base64, contentType: blob.type }),
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      if (!res.ok) throw new Error(`服务端返回 ${res.status}`)
+      const json = await res.json()
+      return json.url
+    } catch (err) {
+      clearTimeout(timeout)
+      throw err
+    }
   }
 }
