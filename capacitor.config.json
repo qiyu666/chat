@@ -1,0 +1,15 @@
+{
+  "appId": "com.chat.app",
+  "appName": "社交聊天",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#0f0f1a",
+      "androidScaleType": "CENTER_CROP"
+    }
+  }
+}
