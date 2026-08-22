@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ChatListPage from './pages/ChatListPage'
 import ContactsPage from './pages/ContactsPage'
 import MomentsPage from './pages/MomentsPage'
@@ -16,7 +16,15 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState('chats')
   const [profileView, setProfileView] = useState('default')
   const [authView, setAuthView] = useState('login')
+  const [chatActive, setChatActive] = useState(false)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 481)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   if (isAdmin) {
     return localStorage.getItem('adminToken') ? (
@@ -51,7 +59,7 @@ function MainApp() {
         {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
       </div>
 
-      <div style={{ ...styles.tabBar, display: chatActive ? 'none' : 'flex' }}>
+      <div style={{ ...styles.tabBar, display: (isMobile && chatActive) ? 'none' : 'flex' }}>
         {tabItems.map(tab => {
           const IconComp = tab.icon
           return (
