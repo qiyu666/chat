@@ -604,8 +604,7 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100vh',
-    height: '100dvh',
+    height: '100%',
     background: '#0f0f1a',
     position: 'relative'
   },
