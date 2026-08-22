@@ -554,6 +554,7 @@ async function handleRequest(req, env) {
       if (packet.status !== 'open') return respondError('红包已被领取')
       if (packet.receiver_id !== userId) return respondError('无权领取')
       await DB.prepare("UPDATE red_packets SET status = 'claimed', claimed_at = datetime('now') WHERE id = ?").bind(packetId).run()
+      await DB.prepare('UPDATE messages SET claimed = 1 WHERE packet_id = ?').bind(packetId).run()
       await DB.prepare('UPDATE users SET balance = balance + ? WHERE id = ?').bind(packet.amount, userId).run()
       await DB.prepare("INSERT INTO transactions (id, user_id, amount, type, description) VALUES (?, ?, ?, 'receive', '收到红包')").bind(generateId(), userId, packet.amount).run()
       return respond({ success: true, amount: packet.amount })
