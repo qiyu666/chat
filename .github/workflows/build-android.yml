@@ -46,18 +46,8 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > app/signing.keystore
-            ./gradlew assembleRelease --no-daemon \
-              -Pandroid.injected.signing.store.file=app/signing.keystore \
-              -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-              -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-              -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-            rm app/signing.keystore
-          else
-            ./gradlew assembleRelease --no-daemon
-          fi
+          ./gradlew assembleDebug
+          ./gradlew assembleRelease
 
       - name: Upload debug APK
         if: always()
