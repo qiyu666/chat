@@ -109,7 +109,7 @@ const api = {
       return api.request('DELETE', `/messages/${messageId}`)
     },
     clearChat(chatId) {
-      return api.request('DELETE', `/messages/chat/${chatId}`)
+      return api.request('DELETE', `/chats/${chatId}/clear`)
     }
   },
 
