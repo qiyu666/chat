@@ -196,14 +196,18 @@ async function handleRequest(req, env) {
       if (err) return err
       const blockedIds = (await DB.prepare('SELECT blocked_id FROM blocks WHERE blocker_id = ?').bind(userId).all()).results.map(r => r.blocked_id)
       const contacts = await DB.prepare(`
-        SELECT u.id, u.username, ct.created_at, ch.id as chat_id
+        SELECT u.id, u.username, ct.created_at, ch.id as chat_id,
+               (SELECT m.content FROM messages m WHERE m.chat_id = ch.id ORDER BY m.created_at DESC LIMIT 1) as last_msg
         FROM contacts ct
         JOIN users u ON ct.friend_id = u.id
         LEFT JOIN chats ch ON (ch.user1_id = ct.user_id AND ch.user2_id = ct.friend_id) OR (ch.user1_id = ct.friend_id AND ch.user2_id = ct.user_id)
         WHERE ct.user_id = ? AND (ct.friend_id NOT IN (:blocked) OR :blocked IS NULL)
         ORDER BY ct.created_at DESC
       `).bind(userId, blockedIds.length > 0 ? blockedIds.join(',') : null).all()
-      return respond((contacts.results || []).map(r => ({ id: r.id, username: r.username, chatId: r.chat_id })))
+      return respond((contacts.results || []).map(r => ({
+        id: r.id, username: r.username, chatId: r.chat_id,
+        lastMessage: r.last_msg || ''
+      })))
     }
 
     if (path.startsWith('/api/contacts/') && method === 'DELETE') {
