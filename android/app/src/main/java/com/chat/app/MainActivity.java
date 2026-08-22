@@ -10,6 +10,6 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
-        NotificationHelper.createNotificationChannel(this);
+        NativeNotificationService.initChannel(this);
     }
 }
