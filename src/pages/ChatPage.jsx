@@ -3,6 +3,7 @@ import { Send, ArrowLeft, Phone, Video, Smile, ImagePlus, Lock, Eye, EyeOff } fr
 import api from '../api'
 import { uploadToImgbb } from '../utils/imgbb'
 import { useApp } from '../AppContext'
+import { NotificationService } from '../utils/notifications'
 
 export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   const { hasPaymentPassword } = useApp()
