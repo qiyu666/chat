@@ -221,7 +221,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     }
   }
 
-  const isImageUrl = (text) => /\.(jpg|jpeg|png|webp|gif|bmp)/i.test(text) && (text.startsWith('http') || text.startsWith('data:image') || text.startsWith('/images/'))
+  const isImageUrl = (text) => /\.(jpg|jpeg|png|webp|gif|bmp)/i.test(text) && (text.startsWith('http') || text.startsWith('data:image'))
 
   // 点击红包气泡 → 打开全屏开红包界面
   const handleOpenPacket = (msg) => {

@@ -22,7 +22,10 @@ export default function MomentsPage() {
     setLoading(true)
     try {
       const data = await api.moments.list()
-      setMoments(data.moments || [])
+      setMoments((data.moments || []).map(m => ({
+        ...m,
+        images: m.images ? JSON.parse(m.images) : []
+      })))
     } catch (e) {
       setMoments([])
     } finally {

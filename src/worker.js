@@ -413,10 +413,7 @@ async function handleRequest(req, env) {
         LEFT JOIN (SELECT moment_id, COUNT(*) as cnt FROM moment_likes GROUP BY moment_id) like_cnt ON like_cnt.moment_id = m.id
         ORDER BY m.created_at DESC LIMIT 50
       `).all()
-      return respond({ moments: (result.results || []).map(m => ({
-        ...m,
-        images: m.images ? JSON.parse(m.images) : []
-      })) })
+      return respond({ moments: result.results || [] })
     }
 
     if (path === '/api/moments' && method === 'POST') {
@@ -672,31 +669,6 @@ async function handleRequest(req, env) {
     }
 
     return respondError('Not Found', 404)
-  }
-
-  if (path === '/api/upload/imgbb' && method === 'POST') {
-    if (!IMAGES) return respondError('图片存储未配置', 500)
-    const body = await req.json()
-    const { image } = body
-    if (!image || !image.startsWith('data:')) return respondError('无效的图片数据')
-    const mimeMatch = image.match(/^data:(image\/[a-z]+);base64,/i)
-    const ext = mimeMatch ? mimeMatch[1].split('/')[1] : 'jpeg'
-    const base64Data = image.split(',')[1]
-    if (!base64Data) return respondError('图片数据为空')
-    const binary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
-    const key = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    await IMAGES.put(key, binary, { httpMetadata: { contentType: mimeMatch?.[1] || 'image/jpeg' } })
-    return respond({ url: `/images/${key}` })
-  }
-
-  if (path.startsWith('/images/') && method === 'GET') {
-    if (!IMAGES) return respondError('图片存储未配置', 500)
-    const key = path.slice(9)
-    const object = await IMAGES.get(key)
-    if (!object) return respondError('图片不存在', 404)
-    return new Response(object.body, {
-      headers: { 'Content-Type': object.httpMetadata?.contentType || 'application/octet-stream', 'Cache-Control': 'public, max-age=86400' }
-    })
   }
 
   return respondError('Not Found', 404)
