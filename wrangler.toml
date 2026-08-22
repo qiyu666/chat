@@ -7,3 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "chat"
 database_id = "cc3fba44-0e7a-4727-a5cc-a2a72566440f"
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "chat-images"

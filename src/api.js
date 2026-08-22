@@ -102,8 +102,8 @@ const api = {
     get(chatId) {
       return api.request('GET', `/chats/${chatId}/messages`)
     },
-    send(chatId, content) {
-      return api.request('POST', `/chats/${chatId}/messages`, { content })
+    send(chatId, content, imageUrl = null) {
+      return api.request('POST', `/chats/${chatId}/messages`, { content, imageUrl })
     },
     delete(messageId) {
       return api.request('DELETE', `/messages/${messageId}`)
@@ -118,7 +118,7 @@ const api = {
       return api.request('GET', '/moments')
     },
     create(content, imageUrls = []) {
-      return api.request('POST', '/moments', { content, imageUrls })
+      return api.request('POST', '/moments', { content, images: imageUrls })
     },
     like(momentId) {
       return api.request('POST', `/moments/${momentId}/like`)
