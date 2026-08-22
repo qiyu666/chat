@@ -22,7 +22,7 @@ public class NotificationHelper {
             );
             channel.setDescription(CHANNEL_DESC);
             channel.enableVibration(true);
-            channel.setLockscreenVisibility(NotificationManager.VISIBILITY_PUBLIC);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             manager.createNotificationChannel(channel);
         }
     }
