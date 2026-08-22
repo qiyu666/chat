@@ -282,11 +282,10 @@ async function handleRequest(req, env) {
       const body = await req.json()
       const { content, imageUrl } = body
       if (!content && !imageUrl) return respondError('消息内容不能为空')
-      const chat = await DB.prepare('SELECT id FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').bind(chatId, userId, userId).first()
+      const chat = await DB.prepare('SELECT id, user1_id, user2_id FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').bind(chatId, userId, userId).first()
       if (!chat) return respondError('聊天不存在或无权访问', 404)
       const id = generateId()
       await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content, image_url) VALUES (?, ?, ?, ?, ?)').bind(id, chatId, userId, content || null, imageUrl || null).run()
-      const chat = await DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
       const otherUserId = chat.user1_id === userId ? chat.user2_id : chat.user1_id
       await DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
       return respond({ success: true, id })
