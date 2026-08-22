@@ -258,6 +258,16 @@ const styles = {
     fontSize: 18,
     flexShrink: 0
   },
+  unreadDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+    background: '#ff3b30',
+    border: '2px solid #1a1a2e'
+  },
   contactText: { flex: 1, overflow: 'hidden' },
   contactName: { display: 'block', fontSize: 16, fontWeight: 500 },
   lastMsg: { display: 'block', fontSize: 13, color: '#6c6c80', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },

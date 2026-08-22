@@ -75,7 +75,7 @@ async function handleRequest(req, env) {
   if (!JWT_SECRET) throw new Error('JWT_SECRET not configured')
 
   // 一次性建表，仅在表不存在时写入（首次部署后不再消耗读取）
-  await DB.exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, chat_code TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, balance REAL DEFAULT 100, payment_password TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS blocks (blocker_id TEXT NOT NULL, blocked_id TEXT NOT NULL, PRIMARY KEY (blocker_id, blocked_id));CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, sender_id TEXT NOT NULL, content TEXT, image_url TEXT, packet_id TEXT, claimed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL, description TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, images TEXT, like_count INTEGER DEFAULT 0, comment_count INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moment_likes (moment_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY (moment_id, user_id));CREATE TABLE IF NOT EXISTS moment_comments (id TEXT PRIMARY KEY, moment_id TEXT NOT NULL, user_id TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS red_packets (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, amount REAL NOT NULL, message TEXT, status TEXT DEFAULT 'open', claimed_at TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));`)
+  await DB.exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, chat_code TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, balance REAL DEFAULT 100, payment_password TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS blocks (blocker_id TEXT NOT NULL, blocked_id TEXT NOT NULL, PRIMARY KEY (blocker_id, blocked_id));CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, sender_id TEXT NOT NULL, content TEXT, image_url TEXT, packet_id TEXT, claimed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL, description TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, images TEXT, like_count INTEGER DEFAULT 0, comment_count INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moment_likes (moment_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY (moment_id, user_id));CREATE TABLE IF NOT EXISTS moment_comments (id TEXT PRIMARY KEY, moment_id TEXT NOT NULL, user_id TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS red_packets (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, amount REAL NOT NULL, message TEXT, status TEXT DEFAULT 'open', claimed_at TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS unread_counts (user_id TEXT NOT NULL, chat_id TEXT NOT NULL, count INTEGER DEFAULT 0, PRIMARY KEY (user_id, chat_id));`)
   // 迁移：为已有消息表添加 claimed 列（忽略已存在时报错）
   await DB.exec("ALTER TABLE messages ADD COLUMN claimed INTEGER DEFAULT 0").catch(() => {}).then(() => {
     return DB.prepare("UPDATE messages SET claimed = 1 WHERE packet_id IS NOT NULL AND packet_id IN (SELECT id FROM red_packets WHERE status = 'claimed')").run()
@@ -197,16 +197,19 @@ async function handleRequest(req, env) {
       const blockedIds = (await DB.prepare('SELECT blocked_id FROM blocks WHERE blocker_id = ?').bind(userId).all()).results.map(r => r.blocked_id)
       const contacts = await DB.prepare(`
         SELECT u.id, u.username, ct.created_at, ch.id as chat_id,
-               (SELECT m.content FROM messages m WHERE m.chat_id = ch.id ORDER BY m.created_at DESC LIMIT 1) as last_msg
+               (SELECT m.content FROM messages m WHERE m.chat_id = ch.id ORDER BY m.created_at DESC LIMIT 1) as last_msg,
+               COALESCE(uc.count, 0) as unread_count
         FROM contacts ct
         JOIN users u ON ct.friend_id = u.id
         LEFT JOIN chats ch ON (ch.user1_id = ct.user_id AND ch.user2_id = ct.friend_id) OR (ch.user1_id = ct.friend_id AND ch.user2_id = ct.user_id)
+        LEFT JOIN unread_counts uc ON uc.user_id = ? AND uc.chat_id = ch.id
         WHERE ct.user_id = ? AND (ct.friend_id NOT IN (:blocked) OR :blocked IS NULL)
         ORDER BY ct.created_at DESC
-      `).bind(userId, blockedIds.length > 0 ? blockedIds.join(',') : null).all()
+      `).bind(userId, userId, blockedIds.length > 0 ? blockedIds.join(',') : null).all()
       return respond((contacts.results || []).map(r => ({
         id: r.id, username: r.username, chatId: r.chat_id,
-        lastMessage: r.last_msg || ''
+        lastMessage: r.last_msg || '',
+        unread: r.unread_count || 0
       })))
     }
 
@@ -283,6 +286,9 @@ async function handleRequest(req, env) {
       if (!chat) return respondError('聊天不存在或无权访问', 404)
       const id = generateId()
       await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content, image_url) VALUES (?, ?, ?, ?, ?)').bind(id, chatId, userId, content || null, imageUrl || null).run()
+      const chat = await DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
+      const otherUserId = chat.user1_id === userId ? chat.user2_id : chat.user1_id
+      await DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
       return respond({ success: true, id })
     }
 
