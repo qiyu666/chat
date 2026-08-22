@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Send, ArrowLeft, Phone, Video, Smile, ImagePlus, Lock, Eye, EyeOff } from 'lucide-react'
 import api from '../api'
 import { uploadToImgbb } from '../utils/imgbb'
@@ -89,7 +89,9 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     const el = document.querySelector('[data-chat-messages]')
     if (!el) return
     const threshold = 80
-    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+    isAtBottomRef.current = atBottom
+    if (!atBottom) userScrolledUpRef.current = true
   }, [])
 
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   }, [handleMessageScroll])
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
+    if (isAtBottomRef.current && !userScrolledUpRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
@@ -600,7 +602,8 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    height: '100vh',
+    height: '100dvh',
     background: '#0f0f1a',
     position: 'relative'
   },
