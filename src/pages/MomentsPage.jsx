@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Camera, Heart, MessageCircle, Send, X } from 'lucide-react'
 import api from '../api'
-import { uploadToImgbb } from '../utils/imgbb'
+import { uploadImage } from '../utils/imgbb'
 
 export default function MomentsPage() {
   const [moments, setMoments] = useState([])
@@ -55,7 +55,7 @@ export default function MomentsPage() {
     e.target.value = ''
     setUploadingImage(true)
     try {
-      const url = await uploadToImgbb(file)
+      const url = await uploadImage(file)
       setImages(prev => [...prev, url])
     } catch (e) {
       alert(e.message || '图片上传失败')
@@ -71,7 +71,7 @@ export default function MomentsPage() {
     if (!file || !file.type.startsWith('image/')) return
     setUploadingImage(true)
     try {
-      const url = await uploadToImgbb(file)
+      const url = await uploadImage(file)
       setImages(prev => [...prev, url])
     } catch (err) {
       alert(err.message || '图片上传失败')
@@ -231,7 +231,7 @@ export default function MomentsPage() {
                 const file = e.dataTransfer?.files?.[0]
                 if (!file || !file.type.startsWith('image/')) return
                 setUploadingImage(true)
-                uploadToImgbb(file)
+                uploadImage(file)
                   .then(url => setImages(prev => [...prev, url]))
                   .catch(err => alert(err.message || '图片上传失败'))
                   .finally(() => setUploadingImage(false))

@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-const IMGBB_KEY = 'a3c4d52586dedcc730da4af027c12ebf'
+const IMGBB_KEY = '3968df9b249e7986e04256f3ede4df2f'
 const PASSWORD_SECRET = 'chat-mock-dev-secret'
 
 function hashPassword(password) {
@@ -29,7 +29,7 @@ function loadData() {
       return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'))
     } catch (e) {}
   }
-  return { users: {}, contacts: {}, messages: {}, moments: {}, redPackets: {}, transactions: {}, friendRequests: {}, blocks: {} }
+  return { users: {}, contacts: {}, messages: {}, moments: {}, redPackets: {}, transactions: {}, friendRequests: {}, blocks: {}, images: {} }
 }
 
 function saveData(data) {
@@ -707,6 +707,26 @@ app.post('/api/upload/imgbb', express.json({ limit: '10mb' }), async (req, res) 
   } catch (e) {
     res.status(500).json({ error: e.message })
   }
+})
+
+// D1 图片存储（降级方案，imgbb 不可用时使用）
+const images = {}
+let imageCounter = 0
+app.post('/api/images', express.json({ limit: '2mb' }), (req, res) => {
+  const { data, contentType } = req.body
+  if (!data) return res.status(400).json({ error: '图片数据不能为空' })
+  const id = `img_${++imageCounter}_${Date.now()}`
+  images[id] = { data, contentType: contentType || 'image/jpeg' }
+  res.json({ url: `/api/images/${id}` })
+})
+
+app.get('/api/images/:id', (req, res) => {
+  const img = images[req.params.id]
+  if (!img) return res.status(404).json({ error: '图片不存在' })
+  const raw = Buffer.from(img.data, 'base64')
+  res.set('Content-Type', img.contentType)
+  res.set('Cache-Control', 'public, max-age=86400')
+  res.send(raw)
 })
 
 // ── Admin ──────────────────────────────────────────

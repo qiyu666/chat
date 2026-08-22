@@ -80,6 +80,7 @@ async function handleRequest(req, env) {
   await DB.exec("ALTER TABLE messages ADD COLUMN claimed INTEGER DEFAULT 0").catch(() => {}).then(() => {
     return DB.prepare("UPDATE messages SET claimed = 1 WHERE packet_id IS NOT NULL AND packet_id IN (SELECT id FROM red_packets WHERE status = 'claimed')").run()
   }).catch(() => {})
+  await DB.exec("CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY, data BLOB NOT NULL, content_type TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')))").catch(() => {})
 
   if (path === '/health') {
     return new Response(JSON.stringify({ ok: true }), {
@@ -293,6 +294,29 @@ async function handleRequest(req, env) {
       const otherUserId = chat.user1_id === userId ? chat.user2_id : chat.user1_id
       await DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
       return respond({ success: true, id })
+    }
+
+    if (path === '/api/images' && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const body = await req.json()
+      const { data, contentType } = body
+      if (!data) return respondError('图片数据不能为空')
+      const id = generateId()
+      const raw = Buffer.from(data, 'base64')
+      if (raw.length > 1048576) return respondError('图片大小超过 1MB 限制')
+      await DB.prepare('INSERT INTO images (id, data, content_type) VALUES (?, ?, ?)').bind(id, raw, contentType || 'image/jpeg').run()
+      return respond({ url: `/api/images/${id}` })
+    }
+
+    if (path.startsWith('/api/images/') && method === 'GET') {
+      const id = path.split('/').pop()
+      if (!id) return respondError('缺少图片 ID', 400)
+      const img = await DB.prepare('SELECT data, content_type FROM images WHERE id = ?').bind(id).first()
+      if (!img) return respondError('图片不存在', 404)
+      return new Response(img.data, {
+        headers: { 'Content-Type': img.content_type, 'Cache-Control': 'public, max-age=86400' }
+      })
     }
 
     // 优化：outgoing/incoming 合并为一次批量查询

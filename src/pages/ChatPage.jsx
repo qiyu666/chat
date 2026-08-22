@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Send, ArrowLeft, Phone, Video, Smile, ImagePlus, Lock, Eye, EyeOff } from 'lucide-react'
 import api from '../api'
-import { uploadToImgbb } from '../utils/imgbb'
+import { uploadImage } from '../utils/imgbb'
 import { useApp } from '../AppContext'
 import { NotificationService } from '../utils/notifications'
 
@@ -198,8 +198,8 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     }
     setSendingImage(true)
     try {
-      const url = await uploadToImgbb(file)
-      await api.messages.send(chatId, url)
+      const url = await uploadImage(file)
+      await api.messages.send(chatId, '', url)
       justSentRef.current = true
       const currentUser = localStorage.getItem('user')
         ? JSON.parse(localStorage.getItem('user'))
@@ -389,7 +389,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
         }
         setSendingImage(true)
         let sentUrl = ''
-        uploadToImgbb(file)
+        uploadImage(file)
           .then(url => { sentUrl = url; return api.messages.send(dragChatId, '', url) })
           .then(() => {
             justSentRef.current = true
