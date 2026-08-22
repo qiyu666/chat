@@ -272,6 +272,10 @@ async function handleRequest(req, env) {
          JOIN users u ON m.sender_id = u.id
          WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
       ).bind(chatId).all()
+      const chat = await DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
+      if (chat) {
+        await DB.prepare('UPDATE unread_counts SET count = 0 WHERE user_id = ? AND chat_id = ?').bind(userId, chatId).run()
+      }
       return respond({ messages: (msgs.results || []).map(m => ({ ...m, redPacketId: m.packet_id || null, senderUsername: m.sender_name })) })
     }
 
