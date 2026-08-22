@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
@@ -30,19 +31,13 @@ jobs:
         run: CI=true npx cap sync android
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'gradle'
 
-      - name: Build debug APK
-        working-directory: ./android
-        run: |
-          chmod +x ./gradlew
-          ./gradlew assembleDebug
-
-      - name: Build release APK (unsigned)
+      - name: Build APKs
         working-directory: ./android
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -51,16 +46,17 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > app/signing.keystore
-            ./gradlew assembleRelease \
+            ./gradlew assembleRelease --no-daemon \
               -Pandroid.injected.signing.store.file=app/signing.keystore \
               -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
               -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
               -Pandroid.injected.signing.key.password=$KEY_PASSWORD
             rm app/signing.keystore
           else
-            ./gradlew assembleRelease
+            ./gradlew assembleRelease --no-daemon
           fi
 
       - name: Upload debug APK
