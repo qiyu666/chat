@@ -37,6 +37,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
 
   const bottomRef = useRef(null)
   const isAtBottomRef = useRef(true)
+  const userScrolledUpRef = useRef(false)
   const lastMsgCountRef = useRef(0)
   const justSentRef = useRef(false)
 
