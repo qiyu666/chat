@@ -19,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -40,11 +39,9 @@ fun MomentsScreen(viewModel: MomentViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val comments by viewModel.comments.collectAsState()
     val expandedIds by viewModel.expandedIds.collectAsState()
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val container = context.chatContainer
     val currentUser = remember { mutableStateOf<User?>(null) }
-    val focusManager = remember { LocalFocusManager.current }
 
     LaunchedEffect(Unit) {
         currentUser.value = container.currentUser()
@@ -174,7 +171,6 @@ fun MomentCard(
 ) {
     var showCommentInput by remember { mutableStateOf(false) }
     var commentText by remember { mutableStateOf("") }
-    val focusManager = remember { LocalFocusManager.current }
     val timeStr = formatTimeAgo(moment.created_at)
 
     Card(
@@ -421,7 +417,6 @@ fun PostDialog(
     images: List<String>
 ) {
     var content by remember { mutableStateOf("") }
-    val focusManager = remember { LocalFocusManager.current }
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
