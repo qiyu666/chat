@@ -33,6 +33,10 @@ public class NativeNotificationService {
     }
 
     public static void show(Context context, String title, String body) {
+        showId(context, title, body, NOTIFICATION_ID);
+    }
+
+    public static void showId(Context context, String title, String body, int id) {
         Intent intent = new Intent(context, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
@@ -59,7 +63,7 @@ public class NativeNotificationService {
         NotificationManager manager =
                 (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager != null) {
-            manager.notify(NOTIFICATION_ID, builder.build());
+            manager.notify(id, builder.build());
         }
     }
 }

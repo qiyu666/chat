@@ -11,5 +11,6 @@ public class MainActivity extends BridgeActivity {
         SplashScreen.installSplashScreen(this);
         super.onCreate(savedInstanceState);
         NativeNotificationService.initChannel(this);
+        registerPlugin(NativeNotificationsPlugin.class);
     }
 }
