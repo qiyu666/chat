@@ -9,7 +9,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
-import androidx.core.content.ContextCompat;
 
 public class NativeNotificationService {
     public static final String CHANNEL_ID = "chat_messages";
