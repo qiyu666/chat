@@ -63,8 +63,37 @@ class ChatRepository(
     suspend fun getContacts(): List<Contact> = api.getContacts().body() ?: emptyList()
     suspend fun searchUser(query: String): List<User> = api.searchUser(query).body() ?: emptyList()
 
-    suspend fun getMoments(): List<Moment> = api.getMoments().body() ?: emptyList()
-    suspend fun likeMoment(id: Int) = api.likeMoment(id)
+    suspend fun getMoments(): List<Moment> {
+        val res = api.getMoments()
+        return if (res.isSuccessful) res.body()?.moments ?: emptyList() else emptyList()
+    }
+
+    suspend fun createMoment(content: String, images: List<String>?): Boolean {
+        val body = mutableMapOf<String, Any>("content" to content)
+        if (!images.isNullOrEmpty()) body["images"] = images
+        val res = api.createMoment(body)
+        return res.isSuccessful
+    }
+
+    suspend fun toggleLike(momentId: String): Boolean {
+        val res = api.toggleLike(momentId)
+        return res.isSuccessful && res.body()?.liked == true
+    }
+
+    suspend fun deleteMoment(momentId: String): Boolean {
+        val res = api.deleteMoment(momentId)
+        return res.isSuccessful
+    }
+
+    suspend fun getComments(momentId: String): List<MomentComment> {
+        val res = api.getComments(momentId)
+        return if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+    }
+
+    suspend fun addComment(momentId: String, content: String): Boolean {
+        val res = api.addComment(momentId, mapOf("content" to content))
+        return res.isSuccessful
+    }
 
     suspend fun getBalance(): Balance = api.getBalance().body() ?: Balance("0.00")
     suspend fun getTransactions(page: Int): TransactionPage =

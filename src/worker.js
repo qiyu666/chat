@@ -429,15 +429,42 @@ async function handleRequest(req, env) {
     }
 
     // 优化：moments + likes 合并为一次 JOIN + GROUP BY，从 3 reads → 1 read
+    // 朋友圈：仅展示好友+自己的动态（跟微信一样，不可公开访问）
     if (path === '/api/moments' && method === 'GET') {
+      const err = requireAuth()
+      if (err) return err
+      // 获取当前用户的好友列表（contacts表是双向存储的）
+      const friendRows = await DB.prepare(
+        `SELECT friend_id FROM contacts WHERE user_id = ? UNION SELECT user_id FROM contacts WHERE friend_id = ?`
+      ).bind(userId, userId).all()
+      const friendIds = friendRows.results.map(r => r.friend_id)
+      const showIds = [...friendIds, userId]
+      if (showIds.length === 0) {
+        return respond({ moments: [], liked_ids: [] })
+      }
+      const placeholders = showIds.map(() => '?').join(',')
       const result = await DB.prepare(`
-        SELECT m.*, u.username, COALESCE(like_cnt.cnt, 0) as like_count
+        SELECT m.*, u.username, u.avatar_url, COALESCE(like_cnt.cnt, 0) as like_count,
+               COALESCE(cmt_cnt.cnt, 0) as comment_count
         FROM moments m
         JOIN users u ON m.user_id = u.id
         LEFT JOIN (SELECT moment_id, COUNT(*) as cnt FROM moment_likes GROUP BY moment_id) like_cnt ON like_cnt.moment_id = m.id
-        ORDER BY m.created_at DESC LIMIT 50
-      `).all()
-      return respond({ moments: result.results || [] })
+        LEFT JOIN (SELECT moment_id, COUNT(*) as cnt FROM moment_comments GROUP BY moment_id) cmt_cnt ON cmt_cnt.moment_id = m.id
+        WHERE m.user_id IN (${placeholders})
+        ORDER BY m.created_at DESC LIMIT 100
+      `).bind(...showIds).all()
+      // 一次性查询当前用户已点赞的动态ID
+      const likedRows = await DB.prepare(
+        `SELECT moment_id FROM moment_likes WHERE user_id = ?`
+      ).bind(userId).all()
+      const likedIds = likedRows.results.map(r => r.moment_id)
+      return respond({
+        moments: (result.results || []).map(r => ({
+          ...r,
+          images: r.images ? JSON.parse(r.images) : null,
+          liked: likedIds.includes(r.id)
+        }))
+      })
     }
 
     if (path === '/api/moments' && method === 'POST') {
@@ -472,7 +499,7 @@ async function handleRequest(req, env) {
       if (err) return err
       const momentId = path.split('/')[3]
       const comments = await DB.prepare(
-        `SELECT c.*, u.username FROM moment_comments c JOIN users u ON c.user_id = u.id WHERE c.moment_id = ? ORDER BY c.created_at ASC`
+        `SELECT c.*, u.username, u.avatar_url FROM moment_comments c JOIN users u ON c.user_id = u.id WHERE c.moment_id = ? ORDER BY c.created_at ASC`
       ).bind(momentId).all()
       return respond(comments.results || [])
     }

@@ -81,14 +81,37 @@ data class FriendRequest(
 // ============ 朋友圈 ============
 @JsonClass(generateAdapter = true)
 data class Moment(
-    val id: Int,
-    val user_id: Int,
+    val id: String,
+    val user_id: String,
     val username: String,
+    val avatar_url: String? = null,
     val content: String,
     val images: List<String>? = null,
     val like_count: Int = 0,
+    val comment_count: Int = 0,
     val liked: Boolean = false,
     val created_at: String
+)
+
+@JsonClass(generateAdapter = true)
+data class MomentComment(
+    val id: String,
+    val moment_id: String,
+    val user_id: String,
+    val username: String,
+    val avatar_url: String? = null,
+    val content: String,
+    val created_at: String
+)
+
+@JsonClass(generateAdapter = true)
+data class MomentsListResponse(
+    val moments: List<Moment>
+)
+
+@JsonClass(generateAdapter = true)
+data class ToggleLikeResponse(
+    val liked: Boolean
 )
 
 // ============ 钱包 ============

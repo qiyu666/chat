@@ -66,16 +66,22 @@ interface ChatApi {
 
     // ===== 朋友圈 =====
     @GET("moments")
-    suspend fun getMoments(): Response<List<Moment>>
+    suspend fun getMoments(): Response<MomentsListResponse>
 
     @POST("moments")
-    suspend fun createMoment(@Body body: Map<String, Any>): Response<Moment>
+    suspend fun createMoment(@Body body: Map<String, Any>): Response<MessageResponse>
 
     @POST("moments/{id}/like")
-    suspend fun likeMoment(@Path("id") id: Int): Response<MessageResponse>
+    suspend fun toggleLike(@Path("id") id: String): Response<ToggleLikeResponse>
 
-    @DELETE("moments/{id}")
-    suspend fun deleteMoment(@Path("id") id: Int): Response<MessageResponse>
+    @DELETE("moments/{id}/delete")
+    suspend fun deleteMoment(@Path("id") id: String): Response<MessageResponse>
+
+    @GET("moments/{id}/comments")
+    suspend fun getComments(@Path("id") id: String): Response<List<MomentComment>>
+
+    @POST("moments/{id}/comments")
+    suspend fun addComment(@Path("id") id: String, @Body body: Map<String, String>): Response<MessageResponse>
 
     // ===== 钱包 =====
     @GET("wallet/balance")
