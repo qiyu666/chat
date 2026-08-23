@@ -4,8 +4,7 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSArray;
@@ -16,23 +15,16 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.json.JSONException;
+import org.json.JSONObject;
 
-@CapacitorPlugin(name = "NativeNotifications")
+@CapacitorPlugin(
+    name = "NativeNotifications",
+    requestCodes = { NativeNotificationsPlugin.REQUEST_NOTIFICATION_PERMISSION }
+)
 public class NativeNotificationsPlugin extends Plugin {
 
+    static final int REQUEST_NOTIFICATION_PERMISSION = 9001;
     private PluginCall pendingPermissionCall;
-    private final ActivityResultLauncher<String> permissionLauncher = registerForActivityResult(
-            new ActivityResultContracts.RequestPermission(),
-            result -> {
-                PluginCall call = pendingPermissionCall;
-                pendingPermissionCall = null;
-                if (call != null) {
-                    JSObject ret = new JSObject();
-                    ret.put("isAuthorized", Boolean.TRUE.equals(result));
-                    call.resolve(ret);
-                }
-            }
-    );
 
     @PluginMethod
     public void checkPermissions(PluginCall call) {
@@ -64,7 +56,25 @@ public class NativeNotificationsPlugin extends Plugin {
             return;
         }
         pendingPermissionCall = call;
-        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+        ActivityCompat.requestPermissions(
+                getActivity(),
+                new String[]{ Manifest.permission.POST_NOTIFICATIONS },
+                REQUEST_NOTIFICATION_PERMISSION
+        );
+    }
+
+    @Override
+    public void handleRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.handleRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_NOTIFICATION_PERMISSION && pendingPermissionCall != null) {
+            PluginCall call = pendingPermissionCall;
+            pendingPermissionCall = null;
+            boolean granted = grantResults.length > 0
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            JSObject ret = new JSObject();
+            ret.put("isAuthorized", granted);
+            call.resolve(ret);
+        }
     }
 
     @PluginMethod
@@ -73,11 +83,11 @@ public class NativeNotificationsPlugin extends Plugin {
         int count = 0;
         try {
             for (int i = 0; i < notifications.length(); i++) {
-                JSObject n = notifications.getJSObject(i);
-                if (n == null) continue;
-                String title = n.getString("title", "社交聊天");
-                String body = n.getString("body", "");
-                int id = n.getInteger("id", (int) (System.currentTimeMillis() / 1000) + i);
+                JSONObject obj = notifications.optJSONObject(i);
+                if (obj == null) continue;
+                String title = obj.has("title") ? obj.getString("title") : "社交聊天";
+                String body = obj.has("body") ? obj.getString("body") : "";
+                int id = obj.has("id") ? obj.getInt("id") : (int) (System.currentTimeMillis() / 1000) + i;
                 NativeNotificationService.showId(getContext(), title, body, id);
                 count++;
             }
