@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Compose 接管主题，这里只配置 windowSplashScreenBehavior + 无 ActionBar -->
+    <style name="Theme.ChatApp" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/bg_primary</item>
+        <item name="android:navigationBarColor">@color/bg_primary</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
+        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="android:windowSplashScreenBackground">@color/bg_primary</item>
+    </style>
+</resources>

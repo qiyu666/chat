@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 Web 版暗色主题保持一致 -->
+    <color name="bg_primary">#0F0F1A</color>
+    <color name="bg_secondary">#1A1A2E</color>
+    <color name="bg_card">#16162A</color>
+    <color name="divider">#2A2A4A</color>
+
+    <color name="accent_primary">#E94560</color>
+    <color name="accent_secondary">#533483</color>
+
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B8B8D0</color>
+    <color name="text_hint">#6C6C80</color>
+
+    <color name="success">#4ADE80</color>
+    <color name="warning">#F59E0B</color>
+    <color name="error">#EF4444</color>
+</resources>

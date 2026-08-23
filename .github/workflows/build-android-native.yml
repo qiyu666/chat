@@ -1,0 +1,102 @@
+name: Build Native Android APK
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'android-native/**'
+      - '.github/workflows/build-android-native.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Grant gradlew permissions
+        working-directory: ./android-native
+        run: chmod +x ./gradlew
+
+      - name: Build debug APK
+        working-directory: ./android-native
+        run: |
+          set +e
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build-debug.log
+          GRADLE_EXIT=${PIPESTATUS[0]:-$?}
+          set +o pipefail
+          set -e
+          if [ $GRADLE_EXIT -ne 0 ]; then
+            echo "=== GRADLE DEBUG BUILD FAILED (exit=$GRADLE_EXIT) — tail of log ==="
+            tail -n 300 build-debug.log
+            exit $GRADLE_EXIT
+          fi
+
+      - name: Build release APK (unsigned)
+        working-directory: ./android-native
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set +e
+          set -o pipefail
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > app/signing.keystore
+            ./gradlew assembleRelease --stacktrace --no-daemon \
+              -Pandroid.injected.signing.store.file=app/signing.keystore \
+              -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+              -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+              -Pandroid.injected.signing.key.password=$KEY_PASSWORD \
+              2>&1 | tee build-release.log
+            GRADLE_EXIT=${PIPESTATUS[0]:-$?}
+            rm -f app/signing.keystore
+          else
+            ./gradlew assembleRelease --stacktrace --no-daemon 2>&1 | tee build-release.log
+            GRADLE_EXIT=${PIPESTATUS[0]:-$?}
+          fi
+          set +o pipefail
+          set -e
+          if [ $GRADLE_EXIT -ne 0 ]; then
+            echo "=== GRADLE RELEASE BUILD FAILED (exit=$GRADLE_EXIT) — tail of log ==="
+            tail -n 300 build-release.log
+            exit $GRADLE_EXIT
+          fi
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-gradle-build-logs
+          path: |
+            android-native/build-debug.log
+            android-native/build-release.log
+          retention-days: 14
+
+      - name: Upload debug APK (Native)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-app-debug
+          path: android-native/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: Upload release APK (Native unsigned)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-app-release-unsigned
+          path: android-native/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30
