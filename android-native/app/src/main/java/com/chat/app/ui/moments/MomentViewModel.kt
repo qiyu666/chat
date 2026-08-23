@@ -76,11 +76,13 @@ class MomentViewModel(app: Application) : AndroidViewModel(app) {
     fun addComment(momentId: String, content: String) {
         viewModelScope.launch {
             if (repository.addComment(momentId, content)) {
+                val currentUser = container.currentUser()
                 val newComment = MomentComment(
-                    momentId = momentId,
-                    user_id = container.currentUser()?.id?.toString() ?: "",
-                    username = container.currentUser()?.username ?: "我",
-                    avatar_url = container.currentUser()?.avatar_url ?: "",
+                    id = "",
+                    moment_id = momentId,
+                    user_id = currentUser?.id?.toString() ?: "",
+                    username = currentUser?.username ?: "我",
+                    avatar_url = currentUser?.avatar_url ?: "",
                     content = content,
                     created_at = java.time.Instant.now().toString()
                 )

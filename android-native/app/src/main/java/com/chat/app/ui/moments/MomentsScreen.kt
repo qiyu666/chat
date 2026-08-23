@@ -2,6 +2,7 @@ package com.chat.app.ui.moments
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.dialog.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -150,7 +152,7 @@ fun MomentsScreen(viewModel: MomentViewModel = viewModel()) {
                 showPostDialog = false
                 selectedImages = emptyList()
             },
-            onPickImages = { imagePicker.launch(arrayOf("image/*")) },
+            onPickImages = { imagePicker.launch("image/*") },
             images = selectedImages
         )
     }
@@ -249,9 +251,8 @@ fun MomentCard(
                     val cols = if (size == 4) 2 else 3
                     val rows = (size + cols - 1) / cols
                     FlowRow(
-                        mainAxisSpacing = 4.dp,
-                        crossAxisSpacing = 4.dp,
-                        maxItemsPerRow = cols
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         moment.images.forEach { url ->
                             AsyncImage(
@@ -263,7 +264,7 @@ fun MomentCard(
                                 error = null,
                                 contentDescription = "图片",
                                 modifier = Modifier
-                                    .size((260.dp / cols).toDp())
+                                    .size((260.dp / cols))
                                     .clip(RoundedCornerShape(6.dp)),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
@@ -436,9 +437,8 @@ fun PostDialog(
                 // Preview images
                 if (images.isNotEmpty()) {
                     FlowRow(
-                        mainAxisSpacing = 4.dp,
-                        crossAxisSpacing = 4.dp,
-                        maxItemsPerRow = 3
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         images.forEach { url ->
                             AsyncImage(
