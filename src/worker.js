@@ -462,7 +462,9 @@ async function handleRequest(req, env) {
         moments: (result.results || []).map(r => ({
           ...r,
           images: r.images ? JSON.parse(r.images) : null,
-          liked: likedIds.includes(r.id)
+          liked: likedIds.includes(r.id),
+          isMy: r.user_id === userId,
+          avatar_url: r.avatar_url
         }))
       })
     }

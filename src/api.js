@@ -125,6 +125,12 @@ const api = {
     },
     delete(momentId) {
       return api.request('DELETE', `/moments/${momentId}`)
+    },
+    getComments(momentId) {
+      return api.request('GET', `/moments/${momentId}/comments`)
+    },
+    addComment(momentId, content) {
+      return api.request('POST', `/moments/${momentId}/comments`, { content })
     }
   },
 

@@ -12,6 +12,9 @@ export default function MomentsPage() {
   const [posting, setPosting] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [expandedId, setExpandedId] = useState(null)
+  const [commentsMap, setCommentsMap] = useState({})
+  const [commentInputs, setCommentInputs] = useState({})
   const fileInputRef = useRef(null)
 
   useEffect(() => {
@@ -22,10 +25,24 @@ export default function MomentsPage() {
     setLoading(true)
     try {
       const data = await api.moments.list()
-      setMoments((data.moments || []).map(m => ({
+      const list = (data.moments || []).map(m => ({
         ...m,
         images: m.images ? JSON.parse(m.images) : []
-      })))
+      }))
+      setMoments(list)
+      // Pre-load comments for each moment
+      const commentsPromises = list.map(async (m) => {
+        try {
+          const comments = await api.moments.getComments(m.id)
+          return { id: m.id, comments }
+        } catch {
+          return { id: m.id, comments: [] }
+        }
+      })
+      const results = await Promise.all(commentsPromises)
+      const map = {}
+      results.forEach(({ id, comments }) => { map[id] = comments })
+      setCommentsMap(map)
     } catch (e) {
       setMoments([])
     } finally {
@@ -83,15 +100,42 @@ export default function MomentsPage() {
   const handleLike = async (momentId) => {
     try {
       await api.moments.like(momentId)
-      await loadMoments()
+      setMoments(prev => prev.map(m => {
+        if (m.id !== momentId) return m
+        const liked = !m.liked
+        return { ...m, liked, like_count: m.like_count + (liked ? 1 : -1) }
+      }))
     } catch (e) {}
   }
 
   const handleDelete = async (momentId) => {
+    if (!confirm('确定删除这条动态？')) return
     try {
       await api.moments.delete(momentId)
-      await loadMoments()
+      setMoments(prev => prev.filter(m => m.id !== momentId))
     } catch (e) {}
+  }
+
+  const toggleExpand = (momentId) => {
+    setExpandedId(prev => prev === momentId ? null : momentId)
+  }
+
+  const handleAddComment = async (momentId) => {
+    const text = commentInputs[momentId]?.trim()
+    if (!text) return
+    try {
+      await api.moments.addComment(momentId, text)
+      setCommentInputs(prev => ({ ...prev, [momentId]: '' }))
+      // Refresh comments for this moment
+      const comments = await api.moments.getComments(momentId)
+      setCommentsMap(prev => ({ ...prev, [momentId]: comments }))
+      // Update comment count
+      setMoments(prev => prev.map(m =>
+        m.id === momentId ? { ...m, comment_count: m.comment_count + 1 } : m
+      ))
+    } catch (e) {
+      alert(e.message || '评论失败')
+    }
   }
 
   const formatTime = (timeStr) => {
@@ -127,10 +171,14 @@ export default function MomentsPage() {
           moments.map(moment => (
             <div key={moment.id} style={styles.moment}>
               <div style={styles.momentHeader}>
-                <div style={styles.avatar}>{moment.userAvatar || moment.username?.[0]?.toUpperCase()}</div>
+                {moment.avatar_url ? (
+                  <img src={moment.avatar_url} alt="" style={styles.avatarImg} />
+                ) : (
+                  <div style={styles.avatar}>{moment.username?.[0]?.toUpperCase()}</div>
+                )}
                 <div>
                   <span style={styles.username}>{moment.username}</span>
-                  <span style={styles.time}>{formatTime(moment.created_at || moment.createdAt)}</span>
+                  <span style={styles.time}>{formatTime(moment.created_at)}</span>
                 </div>
                 {moment.isMy && (
                   <button onClick={() => handleDelete(moment.id)} style={styles.deleteBtn}>
@@ -159,17 +207,46 @@ export default function MomentsPage() {
                     fill={moment.liked ? '#e94560' : 'none'}
                   />
                   <span style={{ color: moment.liked ? '#e94560' : '#6c6c80', fontSize: 13 }}>
-                    {moment.likes || 0}
+                    {moment.like_count || 0}
                   </span>
                 </button>
-                <button style={styles.actionBtn}>
+                <button onClick={() => toggleExpand(moment.id)} style={styles.actionBtn}>
                   <MessageCircle size={16} color="#a0a0b8" />
-                  <span style={{ color: '#6c6c80', fontSize: 13 }}>{moment.comments || 0}</span>
-                </button>
-                <button style={{ ...styles.actionBtn, marginLeft: 'auto' }}>
-                  <Send size={16} color="#a0a0b8" />
+                  <span style={{ color: '#6c6c80', fontSize: 13 }}>{moment.comment_count || 0}</span>
                 </button>
               </div>
+
+              {/* Comments section */}
+              {expandedId === moment.id && (
+                <div style={styles.commentsSection}>
+                  {(commentsMap[moment.id] || []).map(c => (
+                    <div key={c.id} style={styles.commentItem}>
+                      {c.avatar_url ? (
+                        <img src={c.avatar_url} alt="" style={styles.commentAvatar} />
+                      ) : (
+                        <div style={styles.commentAvatarPlaceholder}>{c.username?.[0]?.toUpperCase()}</div>
+                      )}
+                      <div style={styles.commentBody}>
+                        <span style={styles.commentUsername}>{c.username}</span>
+                        <span style={styles.commentText}>{c.content}</span>
+                        <span style={styles.commentTime}>{formatTime(c.created_at)}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={styles.commentInputRow}>
+                    <input
+                      style={styles.commentInput}
+                      placeholder="说点什么..."
+                      value={commentInputs[moment.id] || ''}
+                      onChange={e => setCommentInputs(prev => ({ ...prev, [moment.id]: e.target.value }))}
+                      onKeyDown={e => { if (e.key === 'Enter') handleAddComment(moment.id) }}
+                    />
+                    <button onClick={() => handleAddComment(moment.id)} style={styles.commentSendBtn}>
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}
@@ -320,6 +397,12 @@ const styles = {
     fontWeight: 700,
     fontSize: 16
   },
+  avatarImg: {
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    objectFit: 'cover'
+  },
   username: { display: 'block', fontWeight: 600, fontSize: 15 },
   time: { display: 'block', fontSize: 12, color: '#6c6c80', marginTop: 2 },
   deleteBtn: { marginLeft: 'auto', padding: 4, color: '#6c6c80' },
@@ -333,7 +416,74 @@ const styles = {
   image: { width: '100%', aspectRatio: 1, objectFit: 'cover', borderRadius: 4 },
   imageSingle: { gridColumn: 'span 1', aspectRatio: '4/3' },
   actions: { display: 'flex', gap: 16, alignItems: 'center' },
-  actionBtn: { display: 'flex', alignItems: 'center', gap: 4 },
+  actionBtn: { display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', padding: 0 },
+  commentsSection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: '1px solid #1a1a2e',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8
+  },
+  commentItem: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 8
+  },
+  commentAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    objectFit: 'cover'
+  },
+  commentAvatarPlaceholder: {
+    width: 28,
+    height: 28,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #e94560, #c73e54)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#fff',
+    flexShrink: 0
+  },
+  commentBody: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 2
+  },
+  commentUsername: { fontSize: 13, fontWeight: 600, color: '#e94560' },
+  commentText: { fontSize: 13, color: '#d0d0e0', lineHeight: 1.4 },
+  commentTime: { fontSize: 11, color: '#6c6c80' },
+  commentInputRow: {
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+    marginTop: 4
+  },
+  commentInput: {
+    flex: 1,
+    padding: '8px 12px',
+    background: '#16213e',
+    borderRadius: 20,
+    border: '1px solid #2a2a4a',
+    color: '#fff',
+    fontSize: 13,
+    outline: 'none'
+  },
+  commentSendBtn: {
+    padding: 8,
+    background: '#e94560',
+    borderRadius: '50%',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   modal: {
     position: 'fixed',
     inset: 0,
