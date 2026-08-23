@@ -1,11 +1,10 @@
 package com.chat.app.ui.auth
 
+import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import android.app.Application
 import com.chat.app.chatContainer
 import com.chat.app.data.repository.ChatRepository
-import com.squareup.moshi.Moshi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,7 +12,7 @@ import kotlinx.coroutines.launch
 
 class AuthViewModel(app: Application) : AndroidViewModel(app) {
     private val container = app.chatContainer
-    private val repository = ChatRepository(container.api, container, Moshi.Builder().addLast(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory()).build())
+    private val repository = ChatRepository(container.api, container, container.moshi)
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()

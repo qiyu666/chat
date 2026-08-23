@@ -100,7 +100,7 @@ fun AuthScreen(
                     value = state.chatCode,
                     onValueChange = viewModel::updateChatCode,
                     leadingIcon = {
-                        Icon(Icons.Default.Numbers, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                     label = { Text("聊号码（可选）") },
                     modifier = Modifier.fillMaxWidth(),

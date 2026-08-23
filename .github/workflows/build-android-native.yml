@@ -33,13 +33,26 @@ jobs:
         run: |
           set +e
           set -o pipefail
-          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build-debug.log
+          ./gradlew assembleDebug --stacktrace --no-daemon --warning-mode=all 2>&1 | tee build-debug.log
           GRADLE_EXIT=${PIPESTATUS[0]:-$?}
           set +o pipefail
           set -e
           if [ $GRADLE_EXIT -ne 0 ]; then
-            echo "=== GRADLE DEBUG BUILD FAILED (exit=$GRADLE_EXIT) — tail of log ==="
-            tail -n 300 build-debug.log
+            echo "============================================================"
+            echo "=== GRADLE DEBUG BUILD FAILED (exit=$GRADLE_EXIT) ==="
+            echo "============================================================"
+            echo ""
+            echo "=== [1/4] Kotlin compiler errors (e:) ==="
+            grep -n "^e:" build-debug.log || echo "(not found: ^e: pattern)"
+            echo ""
+            echo "=== [2/4] Unresolved reference / Type mismatch / compilation errors ==="
+            grep -nEi "Unresolved reference|Type mismatch|No value passed|Cannot infer|Overload resolution ambiguity|error:|has no member|not found|Cannot access|Not enough information" build-debug.log || echo "(no matches)"
+            echo ""
+            echo "=== [3/4] Task failures ==="
+            grep -nE "FAILED|Task .* FAILED|Compilation error" build-debug.log || echo "(no task failures)"
+            echo ""
+            echo "=== [4/4] Tail of log (last 250 lines) ==="
+            tail -n 250 build-debug.log
             exit $GRADLE_EXIT
           fi
 

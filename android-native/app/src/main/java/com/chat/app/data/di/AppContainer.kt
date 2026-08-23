@@ -35,7 +35,7 @@ class AppContainer(private val context: Context) {
         private val KEY_USER_JSON = stringPreferencesKey("auth_user_json")
     }
 
-    private val moshi: Moshi by lazy {
+    val moshi: Moshi by lazy {
         Moshi.Builder()
             .addLast(KotlinJsonAdapterFactory())
             .build()

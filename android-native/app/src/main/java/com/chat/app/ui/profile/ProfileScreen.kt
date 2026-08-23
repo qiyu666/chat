@@ -117,7 +117,7 @@ fun ProfileScreen(
                                     )
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Numbers, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp))
                                 }
                             )
                         }

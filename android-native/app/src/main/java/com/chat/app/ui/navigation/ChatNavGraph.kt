@@ -29,7 +29,9 @@ fun ChatNavGraph() {
     val container = application.chatContainer
     var startDestination by remember { mutableStateOf<String?>(null) }
     val token by container.tokenFlow.collectAsStateWithLifecycle(initialValue = null)
-    val authViewModel: AuthViewModel = viewModel()
+    val authViewModel: AuthViewModel = viewModel {
+        AuthViewModel(application)
+    }
 
     startDestination = if (token.isNullOrBlank()) Route.Auth.path else Route.Home.path
 
