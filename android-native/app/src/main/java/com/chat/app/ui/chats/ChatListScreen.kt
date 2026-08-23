@@ -78,7 +78,7 @@ fun ChatListScreen(onSnack: (String) -> Unit) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else if (sessions.isEmpty()) {
-            EmptyState(icon = Icons.Forum, title = "还没有消息", subtitle = "添加好友后开始聊天吧")
+            EmptyState(icon = Icons.Default.Forum, title = "还没有消息", subtitle = "添加好友后开始聊天吧")
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

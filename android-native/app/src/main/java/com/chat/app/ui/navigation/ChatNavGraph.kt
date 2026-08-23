@@ -1,11 +1,14 @@
 package com.chat.app.ui.navigation
 
+import android.app.Application
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -22,10 +25,11 @@ sealed class Route(val path: String) {
 @Composable
 fun ChatNavGraph() {
     val navController = rememberNavController()
-    val container = remember { androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application }.chatContainer
+    val application = LocalContext.current.applicationContext as Application
+    val container = application.chatContainer
     var startDestination by remember { mutableStateOf<String?>(null) }
     val token by container.tokenFlow.collectAsStateWithLifecycle(initialValue = null)
-    val authViewModel = remember { AuthViewModel(container) }
+    val authViewModel: AuthViewModel = viewModel()
 
     startDestination = if (token.isNullOrBlank()) Route.Auth.path else Route.Home.path
 

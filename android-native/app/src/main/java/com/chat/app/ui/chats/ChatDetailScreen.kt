@@ -125,7 +125,7 @@ fun ChatDetailScreen(chatId: Int, onBack: () -> Unit, onSnack: (String) -> Unit)
                         if (text.isBlank() || sending) return@Button
                         scope.launch {
                             sending = true
-                            runCatching { container.api.sendMessage(chatId, content = text, imageUrl = null).body() }
+                            runCatching { container.api.sendMessage(chatId, SendMessageRequest(content = text, imageUrl = null)).body() }
                                 .onSuccess { input = ""; load() }
                                 .onFailure { onSnack(it.message ?: "发送失败") }
                             sending = false

@@ -20,10 +20,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class HomeTab(val label: String, val icon: ImageVector) {
-    Chats("消息", Icons.Forum),
-    Contacts("联系人", Icons.People),
-    Moments("朋友圈", Icons.AutoAwesome),
-    Profile("我", Icons.Person)
+    Chats("消息", Icons.Default.Forum),
+    Contacts("联系人", Icons.Default.People),
+    Moments("朋友圈", Icons.Default.AutoAwesome),
+    Profile("我", Icons.Default.Person)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -281,7 +281,7 @@ private fun TransactionDetailPage(page: TransactionPage, onBack: () -> Unit) {
 
 @Composable
 private fun TransactionRow(tx: Transaction) {
-    val isIn = tx.amount.startsWith("-").not() && tx.type.contains("claim|receive|in", ignoreCase = true).not()
+    val isIn = !tx.amount.startsWith("-")
     Row(
         modifier = Modifier
             .fillMaxWidth()
