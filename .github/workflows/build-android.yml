@@ -30,6 +30,45 @@ jobs:
       - name: Sync Capacitor
         run: CI=true npx cap sync android
 
+      - name: Ensure cordova.variables.gradle has cdvPluginPostBuildExtras
+        working-directory: ./android/capacitor-cordova-android-plugins
+        run: |
+          python3 <<'PYEOF'
+          import os, re
+          # 1) Ensure cordova.variables.gradle exists and defines cdvPluginPostBuildExtras
+          vf = 'cordova.variables.gradle'
+          if not os.path.exists(vf):
+              with open(vf, 'w') as f:
+                  f.write("// CI safety-net generated file\next {\n  cdvMinSdkVersion = 24\n  cdvPluginPostBuildExtras = []\n  cordovaConfig = [:]\n}\n")
+          else:
+              with open(vf, 'r') as f:
+                  content = f.read()
+              if 'cdvPluginPostBuildExtras' not in content:
+                  with open(vf, 'a') as f:
+                      f.write("\next.cdvPluginPostBuildExtras = []\next.cordovaConfig = [:]\n")
+          # 2) Defensive: wrap for-loop in build.gradle with null check
+          bf = 'build.gradle'
+          if os.path.exists(bf):
+              with open(bf, 'r') as f:
+                  bcontent = f.read()
+              pattern = re.compile(
+                  r'(\n\s*)for\s*\(\s*def\s+func\s*:\s*cdvPluginPostBuildExtras\s*\)\s*\{(.*?func\(\)[\s\S]*?)\}',
+                  re.DOTALL)
+              def replacer(m):
+                  indent = m.group(1)
+                  inner = m.group(2)
+                  return (f"{indent}if (project.hasProperty('cdvPluginPostBuildExtras') && cdvPluginPostBuildExtras != null) {{"
+                          f"{indent}    for (def func : cdvPluginPostBuildExtras) {{{inner}    }}"
+                          f"{indent}}}")
+              new_content, n = pattern.subn(replacer, bcontent, count=1)
+              if n > 0:
+                  with open(bf, 'w') as f:
+                      f.write(new_content)
+                  print(f"Patched build.gradle ({n} occurrence)")
+              else:
+                  print("build.gradle did not need patching (no unsafe for-loop found)")
+          PYEOF
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -41,7 +80,7 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --stacktrace
 
       - name: Build release APK (unsigned)
         working-directory: ./android
@@ -54,14 +93,14 @@ jobs:
           chmod +x ./gradlew
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > app/signing.keystore
-            ./gradlew assembleRelease \
+            ./gradlew assembleRelease --stacktrace \
               -Pandroid.injected.signing.store.file=app/signing.keystore \
               -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
               -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
               -Pandroid.injected.signing.key.password=$KEY_PASSWORD
             rm app/signing.keystore
           else
-            ./gradlew assembleRelease
+            ./gradlew assembleRelease --stacktrace
           fi
 
       - name: Upload debug APK
