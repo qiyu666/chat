@@ -25,6 +25,7 @@ import com.chat.app.data.model.Balance
 import com.chat.app.data.model.Transaction
 import com.chat.app.data.model.TransactionPage
 import com.chat.app.data.model.User
+import com.chat.app.ui.chats.EmptyState
 import kotlinx.coroutines.launch
 
 @Composable
@@ -116,7 +117,7 @@ fun ProfileScreen(
                                     )
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Numbers, contentDescription = null, modifier = Modifier.size(16.dp))
                                 }
                             )
                         }

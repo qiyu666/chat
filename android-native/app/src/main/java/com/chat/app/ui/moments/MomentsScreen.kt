@@ -2,7 +2,7 @@ package com.chat.app.ui.moments
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -25,7 +25,7 @@ fun MomentsScreen() {
             )
         )
         EmptyState(
-            icon = Icons.Default.AutoAwesome,
+            icon = Icons.Default.Grade,
             title = "朋友圈模块开发中",
             subtitle = "下一期将支持发动态、图片上传、点赞互动"
         )

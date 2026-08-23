@@ -19,9 +19,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.chat.app.chatContainer
 import com.chat.app.data.model.ChatMessage
+import com.chat.app.data.model.SendMessageRequest
 import kotlinx.coroutines.launch
 
 @Composable

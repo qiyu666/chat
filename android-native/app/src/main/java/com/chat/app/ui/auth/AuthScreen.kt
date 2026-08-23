@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun AuthScreen(
@@ -99,7 +100,7 @@ fun AuthScreen(
                     value = state.chatCode,
                     onValueChange = viewModel::updateChatCode,
                     leadingIcon = {
-                        Icon(Icons.Default.Badge, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Icon(Icons.Default.Numbers, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
                     label = { Text("聊号码（可选）") },
                     modifier = Modifier.fillMaxWidth(),

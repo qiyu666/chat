@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 enum class HomeTab(val label: String, val icon: ImageVector) {
     Chats("消息", Icons.Default.Forum),
     Contacts("联系人", Icons.Default.People),
-    Moments("朋友圈", Icons.Default.AutoAwesome),
+    Moments("朋友圈", Icons.Default.Grade),
     Profile("我", Icons.Default.Person)
 }
 

@@ -13,6 +13,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -42,7 +43,7 @@ class AppContainer(private val context: Context) {
 
     private val authInterceptor = Interceptor { chain ->
         val original = chain.request()
-        val token = tokenFlow.valueOrNull()
+        val token = runBlocking { currentToken() }
         val builder = original.newBuilder()
             .header("Content-Type", "application/json")
         if (!token.isNullOrBlank()) {
@@ -101,5 +102,3 @@ class AppContainer(private val context: Context) {
     suspend fun currentToken(): String? = tokenFlow.first()
     suspend fun currentUser(): User? = userFlow.first()
 }
-
-private suspend fun <T> Flow<T?>.valueOrNull(): T? = first()
