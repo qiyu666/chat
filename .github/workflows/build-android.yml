@@ -80,7 +80,15 @@ jobs:
         working-directory: ./android
         run: |
           chmod +x ./gradlew
-          ./gradlew assembleDebug --stacktrace
+          set +e
+          ./gradlew assembleDebug --stacktrace --no-daemon 2>&1 | tee build-debug.log
+          GRADLE_EXIT=$?
+          set -e
+          if [ $GRADLE_EXIT -ne 0 ]; then
+            echo "=== GRADLE DEBUG BUILD FAILED (exit=$GRADLE_EXIT) — tail of log ==="
+            tail -n 250 build-debug.log
+            exit $GRADLE_EXIT
+          fi
 
       - name: Build release APK (unsigned)
         working-directory: ./android
@@ -91,17 +99,37 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x ./gradlew
+          set +e
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 -d > app/signing.keystore
-            ./gradlew assembleRelease --stacktrace \
+            ./gradlew assembleRelease --stacktrace --no-daemon \
               -Pandroid.injected.signing.store.file=app/signing.keystore \
               -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
               -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-              -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-            rm app/signing.keystore
+              -Pandroid.injected.signing.key.password=$KEY_PASSWORD \
+              2>&1 | tee build-release.log
+            GRADLE_EXIT=$?
+            rm -f app/signing.keystore
           else
-            ./gradlew assembleRelease --stacktrace
+            ./gradlew assembleRelease --stacktrace --no-daemon 2>&1 | tee build-release.log
+            GRADLE_EXIT=$?
           fi
+          set -e
+          if [ $GRADLE_EXIT -ne 0 ]; then
+            echo "=== GRADLE RELEASE BUILD FAILED (exit=$GRADLE_EXIT) — tail of log ==="
+            tail -n 250 build-release.log
+            exit $GRADLE_EXIT
+          fi
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-logs
+          path: |
+            android/build-debug.log
+            android/build-release.log
+          retention-days: 7
 
       - name: Upload debug APK
         if: always()
