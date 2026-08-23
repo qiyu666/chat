@@ -39,8 +39,8 @@ fun MomentsScreen(viewModel: MomentViewModel = viewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     val comments by viewModel.comments.collectAsState()
     val expandedIds by viewModel.expandedIds.collectAsState()
-    val context = LocalContext.current
-    val container = context.chatContainer
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application
+    val container = app.chatContainer
     val currentUser = remember { mutableStateOf<User?>(null) }
 
     LaunchedEffect(Unit) {

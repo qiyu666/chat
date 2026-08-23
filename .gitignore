@@ -16,3 +16,5 @@ scripts/migration.sql
 src/worker-bundle.js
 src/worker-template.js
 src/worker-dashboard.js
+1/
+android-sdk-tools/

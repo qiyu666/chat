@@ -76,8 +76,16 @@ class MomentViewModel(app: Application) : AndroidViewModel(app) {
     fun addComment(momentId: String, content: String) {
         viewModelScope.launch {
             if (repository.addComment(momentId, content)) {
+                val newComment = MomentComment(
+                    momentId = momentId,
+                    user_id = container.currentUser()?.id?.toString() ?: "",
+                    username = container.currentUser()?.username ?: "我",
+                    avatar_url = container.currentUser()?.avatar_url ?: "",
+                    content = content,
+                    created_at = java.time.Instant.now().toString()
+                )
                 val list = _comments.value[momentId] ?: emptyList()
-                _comments.value = _comments.value + (momentId to list)
+                _comments.value = _comments.value + (momentId to (list + newComment))
                 val updated = _uiState.value.moments.map { m ->
                     if (m.id == momentId) m.copy(comment_count = m.comment_count + 1) else m
                 }
@@ -86,7 +94,7 @@ class MomentViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun createMoment(content: String, images: List<String>?) {
+    fun createMoment(content: String, images: List<String>) {
         viewModelScope.launch {
             if (repository.createMoment(content, images)) {
                 refresh()
