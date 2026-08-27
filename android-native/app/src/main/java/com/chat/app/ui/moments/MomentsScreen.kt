@@ -2,7 +2,6 @@ package com.chat.app.ui.moments
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,7 +13,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.dialog.Dialog
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -249,11 +247,7 @@ fun MomentCard(
                     )
                 } else {
                     val cols = if (size == 4) 2 else 3
-                    val rows = (size + cols - 1) / cols
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         moment.images.forEach { url ->
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
@@ -264,7 +258,8 @@ fun MomentCard(
                                 error = null,
                                 contentDescription = "图片",
                                 modifier = Modifier
-                                    .size((260.dp / cols))
+                                    .weight(1f)
+                                    .aspectRatio(1f)
                                     .clip(RoundedCornerShape(6.dp)),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
@@ -421,25 +416,13 @@ fun PostDialog(
 ) {
     var content by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "发朋友圈",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                // Preview images
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("发朋友圈", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
                 if (images.isNotEmpty()) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         images.forEach { url ->
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
@@ -503,8 +486,19 @@ fun PostDialog(
                     }
                 }
             }
-        }
-    }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (content.trim().isNotEmpty() || images.isNotEmpty()) {
+                        onSend(content.trim(), images)
+                    }
+                },
+                enabled = content.trim().isNotEmpty() || images.isNotEmpty()
+            ) { Text("发布") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
+    )
 }
 
 private fun formatTimeAgo(timestamp: String): String {

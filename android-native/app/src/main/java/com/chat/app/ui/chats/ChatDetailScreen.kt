@@ -205,7 +205,7 @@ private fun MessageBubble(msg: ChatMessage, isMine: Boolean) {
             }
         }
         Text(
-            text = msg.created_at.take(16).replace("T", " "),
+            text = msg.created_at?.take(16)?.replace("T", " ") ?: "",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.padding(

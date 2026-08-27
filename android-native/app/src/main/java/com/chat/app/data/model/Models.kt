@@ -49,8 +49,11 @@ data class ChatMessage(
     val sender_name: String? = null,
     val content: String? = null,
     val image_url: String? = null,
-    val created_at: String,
-    val is_mine: Boolean? = null
+    val created_at: String? = null,
+    val is_mine: Boolean? = null,
+    val safe_sender_id: Int? = null,
+    val packet_id: String? = null,
+    val claimed: Boolean? = null
 )
 
 @JsonClass(generateAdapter = true)

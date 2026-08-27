@@ -18,3 +18,21 @@ src/worker-template.js
 src/worker-dashboard.js
 1/
 android-sdk-tools/
+
+# Android native build artifacts
+android-native/build/
+android-native/app/build/
+android-native/.kotlin/
+android-native/*.log
+android-native/hs_err_pid*.log
+android-native/replay_pid*.log
+android-native/app/*.keystore
+android-native/app/*.jks
+android-native/gradle.properties.local
+
+# Java/Android build artifacts (global)
+*.class
+*.jar
+*.war
+*.ear
+*.log
