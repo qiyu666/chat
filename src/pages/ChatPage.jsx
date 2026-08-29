@@ -4,6 +4,7 @@ import api from '../api'
 import { uploadImage } from '../utils/imgbb'
 import { useApp } from '../AppContext'
 import { NotificationService } from '../utils/notifications'
+import { ChatWebSocket } from '../ws'
 
 export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   const { hasPaymentPassword } = useApp()
@@ -41,6 +42,8 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
   const userScrolledUpRef = useRef(false)
   const lastMsgCountRef = useRef(0)
   const justSentRef = useRef(false)
+  const wsChatIdRef = useRef(null)
+  const wsTokenRef = useRef(null)
 
   const effectiveChatId = initialChatId || contact?.chatId
 
@@ -96,6 +99,68 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     return () => clearInterval(interval)
   }, [effectiveChatId, loadMessages])
 
+  // WebSocket 连接管理
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token')
+    if (!effectiveChatId || !storedToken) return
+
+    const prevChatId = wsChatIdRef.current
+    const prevToken = wsTokenRef.current
+    wsChatIdRef.current = effectiveChatId
+    wsTokenRef.current = storedToken
+
+    if (prevChatId !== effectiveChatId || prevToken !== storedToken) {
+      ChatWebSocket.disconnect()
+      ChatWebSocket.connect(effectiveChatId, storedToken)
+    }
+  }, [effectiveChatId])
+
+  useEffect(() => {
+    ChatWebSocket.setOnConnected(() => setWsConnected(true))
+    ChatWebSocket.setOnClosed(() => setWsConnected(false))
+    ChatWebSocket.setOnError(() => setWsConnected(false))
+
+    ChatWebSocket.setOnMessage((data) => {
+      if (data.chat_id !== effectiveChatId) return
+      if (data.type === 'new_message') {
+        const currentUser = localStorage.getItem('user')
+          ? JSON.parse(localStorage.getItem('user'))
+          : null
+        if (data.sender_id === currentUser?.id) return
+        const newMsg = {
+          id: data.id,
+          sender_id: data.sender_id,
+          senderUsername: data.sender_name,
+          content: data.content,
+          image_url: data.image_url,
+          created_at: data.created_at,
+          redPacketId: data.redPacketId
+        }
+        lastMsgCountRef.current = messages.length + 1
+        setMessages(prev => [...prev, newMsg])
+        setUnreadFromOther(0)
+        if (!isAtBottomRef.current) {
+          const preview = (data.content || '').length > 30
+            ? (data.content || '').slice(0, 30) + '...'
+            : (data.content || '')
+          NotificationService.showNotification(preview, data.sender_name || contact?.username || '新消息')
+        }
+      } else if (data.type === 'packet_claimed') {
+        setMessages(prev => prev.map(m =>
+          m.redPacketId === data.packet_id ? { ...m, claimed: true } : m
+        ))
+        loadMessages()
+      }
+    })
+
+    return () => {
+      ChatWebSocket.setOnMessage(null)
+      ChatWebSocket.setOnConnected(null)
+      ChatWebSocket.setOnClosed(null)
+      ChatWebSocket.setOnError(null)
+    }
+  }, [effectiveChatId])
+
   const handleMessageScroll = useCallback(() => {
     const el = document.querySelector('[data-chat-messages]')
     if (!el) return
@@ -131,6 +196,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     setInput('')
     try {
       await api.messages.send(chatId, content)
+      ChatWebSocket.send({ type: 'chat_message', content })
       justSentRef.current = true
       const currentUser = localStorage.getItem('user')
         ? JSON.parse(localStorage.getItem('user'))
@@ -418,6 +484,9 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
         <div style={styles.contactInfo}>
           <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
           <span style={styles.contactName}>{contact.username}</span>
+          <span style={{ ...styles.wsStatus, background: wsConnected ? '#22c55e' : '#6c6c80' }} title={wsConnected ? '实时在线' : '离线'}>
+            ●
+          </span>
         </div>
         <div style={styles.headerActions}>
           <button style={styles.iconBtn} title="清除消息" onClick={async () => {
@@ -634,6 +703,9 @@ const styles = {
     fontWeight: 600, fontSize: 16
   },
   contactName: { fontSize: 16, fontWeight: 600, color: '#fff' },
+  wsStatus: {
+    width: 8, height: 8, borderRadius: '50%', display: 'inline-block', marginLeft: 6, flexShrink: 0
+  },
   headerActions: { display: 'flex', gap: 4 },
   iconBtn: { padding: 8, borderRadius: 8, background: 'none', border: 'none', color: '#a0a0b8', cursor: 'pointer' },
   messages: { flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column' },

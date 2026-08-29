@@ -242,11 +242,24 @@ async function handleRequest(req, env) {
       const err = requireAuth()
       if (err) return err
       const chats = await DB.prepare(
-        `SELECT c.id, c.user1_id, c.user2_id, c.created_at,
-               CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END as friend_id
-         FROM chats c WHERE c.user1_id = ? OR c.user2_id = ?`
-      ).bind(userId, userId, userId).all()
-      return respond((chats.results || []).map(c => ({ ...c, friend: c.friend_id })))
+        `SELECT c.id,
+               u.username as name,
+               (SELECT m.content FROM messages m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_message,
+               (SELECT m.created_at FROM messages m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) as last_at,
+               COALESCE(uc.count, 0) as unread
+         FROM chats c
+         JOIN users u ON (CASE WHEN c.user1_id = ? THEN c.user2_id ELSE c.user1_id END) = u.id
+         LEFT JOIN unread_counts uc ON uc.user_id = ? AND uc.chat_id = c.id
+         WHERE c.user1_id = ? OR c.user2_id = ?`
+      ).bind(userId, userId, userId, userId).all()
+      return respond((chats.results || []).map(c => ({
+        id: c.id,
+        name: c.name || '未知',
+        avatar: null,
+        last_message: c.last_message || '',
+        last_at: c.last_at || c.created_at,
+        unread: c.unread || 0
+      })))
     }
 
     if (path === '/api/chats' && method === 'POST') {
@@ -277,7 +290,7 @@ async function handleRequest(req, env) {
       if (chat) {
         await DB.prepare('UPDATE unread_counts SET count = 0 WHERE user_id = ? AND chat_id = ?').bind(userId, chatId).run()
       }
-      return respond({ messages: (msgs.results || []).map(m => ({ ...m, redPacketId: m.packet_id || null, senderUsername: m.sender_name })) })
+      return respond({ messages: (msgs.results || []).map(m => ({ ...m, sender_id: String(m.sender_id), safe_sender_id: String(m.sender_id), redPacketId: m.packet_id || null, sender_name: m.sender_name })) })
     }
 
     if (path.startsWith('/api/chats/') && path.endsWith('/messages') && method === 'POST') {
@@ -293,7 +306,8 @@ async function handleRequest(req, env) {
       await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content, image_url) VALUES (?, ?, ?, ?, ?)').bind(id, chatId, userId, content || null, imageUrl || null).run()
       const otherUserId = chat.user1_id === userId ? chat.user2_id : chat.user1_id
       await DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
-      return respond({ success: true, id })
+      const msg = await DB.prepare('SELECT m.*, u.username as sender_name FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.id = ?').bind(id).first()
+      return respond({ ...msg, sender_id: String(msg.sender_id), safe_sender_id: String(msg.sender_id), redPacketId: msg.packet_id || null, sender_name: msg.sender_name })
     }
 
     if (path === '/api/images' && method === 'POST') {
@@ -727,8 +741,84 @@ async function handleRequest(req, env) {
   return respondError('Not Found', 404)
 }
 
+// ── WebSocket 连接管理 ───────────────────────────────
+const wsRooms = new Map() // chatId -> Set<WebSocket>
+
+function wsRespond(ws, data) {
+  try { ws.send(JSON.stringify(data)) } catch {}
+}
+
+
+async function handleWebSocketUpgrade(req, env) {
+  const url = new URL(req.url)
+  if (url.pathname !== '/api/ws') return null
+
+  const token = url.searchParams.get('token')
+  const chatId = url.searchParams.get('chatId')
+  if (!token || !chatId) return null
+
+  const payload = await verifyJWT(token, env.JWT_SECRET)
+  if (!payload || !payload.userId) return null
+
+  const chat = await env.DB.prepare('SELECT id FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').bind(chatId, payload.userId, payload.userId).first()
+  if (!chat) return null
+
+  const { 0: ws, 1: accept } = new WebSocketPair()
+  accept()
+  ws.accept()
+
+  if (!wsRooms.has(chatId)) wsRooms.set(chatId, new Set())
+  const room = wsRooms.get(chatId)
+  room.add(ws)
+
+  ws.addEventListener('message', async (evt) => {
+    try {
+      const data = JSON.parse(evt.data)
+      if (data.type !== 'chat_message' || !data.content) return
+      const msgId = generateId()
+      const chatRecord = await env.DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
+      if (!chatRecord) return
+      const otherUserId = chatRecord.user1_id === payload.userId ? chatRecord.user2_id : chatRecord.user1_id
+      await env.DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content) VALUES (?, ?, ?, ?)').bind(msgId, chatId, payload.userId, data.content).run()
+      await env.DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
+      const msg = await env.DB.prepare('SELECT m.*, u.username as sender_name FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.id = ?').bind(msgId).first()
+      const broadcast = {
+        type: 'new_message',
+        chat_id: chatId,
+        id: msg.id,
+        sender_id: String(msg.sender_id),
+        sender_name: msg.sender_name,
+        content: msg.content,
+        image_url: msg.image_url || null,
+        created_at: msg.created_at,
+        is_mine: false,
+        safe_sender_id: String(msg.sender_id),
+        redPacketId: msg.packet_id || null
+      }
+      for (const client of room) {
+        if (client !== ws && client.readyState === 1) wsRespond(client, broadcast)
+      }
+    } catch (e) {
+      console.error('WS message error:', e)
+    }
+  })
+
+  ws.addEventListener('close', () => {
+    const roomSet = wsRooms.get(chatId)
+    if (roomSet) { roomSet.delete(ws); if (roomSet.size === 0) wsRooms.delete(chatId) }
+  })
+
+  ws.addEventListener('error', () => {
+    const roomSet = wsRooms.get(chatId)
+    if (roomSet) { roomSet.delete(ws); if (roomSet.size === 0) wsRooms.delete(chatId) }
+  })
+
+  wsRespond(ws, { type: 'connected', userId: payload.userId, chatId })
+  return ws
+}
+
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env, _ctx) {
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
@@ -747,6 +837,12 @@ export default {
       return new Response(JSON.stringify({ ok: true }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       })
+    }
+
+    if (url.pathname === '/api/ws' && request.headers.get('Upgrade')?.toLowerCase() === 'websocket') {
+      const ws = await handleWebSocketUpgrade(request, env)
+      if (ws) return new Response(null, { status: 101 })
+      return respondError('WebSocket 连接失败', 400)
     }
 
     try {
