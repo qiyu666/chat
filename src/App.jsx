@@ -14,18 +14,13 @@ import { NotificationService } from './utils/notifications'
 
 function MainApp() {
   const { user } = useApp()
+  const { setActiveChat } = useNotification()
   const [activeTab, setActiveTab] = useState('chats')
   const [profileView, setProfileView] = useState('default')
   const [authView, setAuthView] = useState('login')
   const [chatActive, setChatActive] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
-
-  useEffect(() => {
-    if (user) {
-      NotificationService.init()
-    }
-  }, [user])
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 481)
@@ -134,7 +129,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <MainApp />
+        <NotificationProvider>
+          <MainApp />
+        </NotificationProvider>
       </AppProvider>
     </ErrorBoundary>
   )

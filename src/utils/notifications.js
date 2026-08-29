@@ -3,9 +3,10 @@ import { registerPlugin } from '@capacitor/core'
 const CHANNEL_ID = 'chat_messages'
 const APP_NAME = '社交聊天'
 let notificationEnabled = false
+let initialized = false
 
 const NativeNotifications = registerPlugin('NativeNotifications', {
-  web: () => Promise.resolve({
+  web: () => ({
     async checkPermissions() {
       if (!('Notification' in window)) return { isAuthorized: false }
       return { isAuthorized: Notification.permission === 'granted' }
@@ -20,19 +21,24 @@ const NativeNotifications = registerPlugin('NativeNotifications', {
       for (const n of notifications || []) {
         try { new Notification(n.title || APP_NAME, { body: n.body || '', icon: '/favicon.ico' }) } catch (_) {}
       }
+    },
+    async initChannel() {
+      return { success: true }
     }
   })
 })
 
 export const NotificationService = {
   async init() {
+    if (initialized) return notificationEnabled
+    initialized = true
     if (typeof window === 'undefined') return false
     try {
-      await NativeNotifications.requestPermissions()
       const { isAuthorized } = await NativeNotifications.checkPermissions()
       notificationEnabled = isAuthorized
       if (isAuthorized) {
-        console.log('[Notification] Permissions granted')
+        await NativeNotifications.initChannel()
+        console.log('[Notification] Permissions granted & channel ready')
       }
       return isAuthorized
     } catch (e) {
@@ -44,6 +50,7 @@ export const NotificationService = {
   async showNotification(message, sender) {
     if (!notificationEnabled) return
     if (typeof window === 'undefined') return
+    if (!message) return
     try {
       await NativeNotifications.schedule({
         notifications: [{

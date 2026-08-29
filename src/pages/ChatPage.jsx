@@ -3,11 +3,12 @@ import { Send, ArrowLeft, Phone, Video, Smile, ImagePlus, Lock, Eye, EyeOff } fr
 import api from '../api'
 import { uploadImage } from '../utils/imgbb'
 import { useApp } from '../AppContext'
-import { NotificationService } from '../utils/notifications'
 import { ChatWebSocket } from '../ws'
+import { useNotification } from './NotificationContext'
 
 export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBack }) {
   const { hasPaymentPassword } = useApp()
+  const { setActiveChat } = useNotification()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(true)
@@ -78,7 +79,6 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
           const preview = newMsg.content.length > 30
             ? newMsg.content.slice(0, 30) + '...'
             : newMsg.content
-          NotificationService.showNotification(preview, senderName)
         }
       }
       setMessages(newMsgs)
@@ -152,10 +152,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
         setMessages(prev => [...prev, newMsg])
         setUnreadFromOther(0)
         if (!isAtBottomRef.current) {
-          const preview = (data.content || '').length > 30
-            ? (data.content || '').slice(0, 30) + '...'
-            : (data.content || '')
-          NotificationService.showNotification(preview, data.sender_name || contact?.username || '新消息')
+          // 通知由全局 NotificationContext 处理，此处不再重复调用
         }
       } else if (data.type === 'packet_claimed') {
         setMessages(prev => prev.map(m =>

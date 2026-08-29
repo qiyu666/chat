@@ -42,13 +42,11 @@ export default function ChatListPage() {
         if (prevContact) {
           const curLast = contact.lastMessage || ''
           if (curLast !== (prevContact.lastMessage || '') && contact.unread > 0) {
-            const preview = curLast.length > 30 ? curLast.slice(0, 30) + '...' : curLast
-            NotificationService.showNotification(preview, contact.username)
+            // 通知由全局 NotificationContext WebSocket 处理
           }
         } else {
           if (contact.unread > 0 && contact.lastMessage) {
-            const preview = contact.lastMessage.length > 30 ? contact.lastMessage.slice(0, 30) + '...' : contact.lastMessage
-            NotificationService.showNotification(preview, contact.username)
+            // 通知由全局 NotificationContext WebSocket 处理
           }
         }
       }
