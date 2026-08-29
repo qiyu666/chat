@@ -43,6 +43,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
   const [showMemberManage, setShowMemberManage] = useState(false)
   const [groupMembers, setGroupMembers] = useState([])
   const [groupInfo, setGroupInfo] = useState(null)
+  const [isGroupMuted, setIsGroupMuted] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [searching, setSearching] = useState(false)
