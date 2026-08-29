@@ -94,6 +94,9 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
     loadMessages()
     lastMsgCountRef.current = 0
     userScrolledUpRef.current = false
+    if (isGroup && effectiveChatId) {
+      api.groups.clearUnread(effectiveChatId).catch(() => {})
+    }
   }, [loadMessages])
 
   useEffect(() => {

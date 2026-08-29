@@ -882,6 +882,15 @@ async function handleRequest(req, env) {
       return respond({ success: true })
     }
 
+    // 清零群聊未读数
+    if (path.startsWith('/api/groups/') && path.endsWith('/unread') && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      await DB.prepare("UPDATE unread_counts SET count = 0 WHERE user_id = ? AND chat_id = ?").bind(userId, groupId).run()
+      return respond({ success: true })
+    }
+
     return respondError('Not Found', 404)
   }
 

@@ -182,6 +182,9 @@ const api = {
     },
     dissolve(groupId) {
       return api.request('DELETE', `/groups/${groupId}`)
+    },
+    clearUnread(groupId) {
+      return api.request('POST', `/groups/${groupId}/unread`)
     }
   }
 }
