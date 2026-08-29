@@ -183,6 +183,9 @@ const api = {
     dissolve(groupId) {
       return api.request('DELETE', `/groups/${groupId}`)
     },
+    toggleMute(groupId) {
+      return api.request('POST', `/groups/${groupId}/mute`)
+    },
     clearUnread(groupId) {
       return api.request('POST', `/groups/${groupId}/unread`)
     }

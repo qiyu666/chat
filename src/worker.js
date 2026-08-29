@@ -751,7 +751,7 @@ async function handleRequest(req, env) {
         ORDER BY g.created_at DESC
       `).bind(userId, userId).all()
       return respond((rows.results || []).map(r => ({
-        id: r.id, name: r.name, is_admin: !!r.is_admin,
+        id: r.id, name: r.name, is_admin: !!r.is_admin, is_muted: !!r.is_muted,
         lastMessage: r.last_msg || '', unread: r.unread || 0
       })))
     }
@@ -794,7 +794,7 @@ async function handleRequest(req, env) {
          WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
       ).bind(groupId).all()
       return respond({
-        id: group.id, name: group.name, creator_id: group.creator_id,
+        id: group.id, name: group.name, creator_id: group.creator_id, is_muted: !!group.is_muted,
         members: (memberRows.results || []).map(m => ({
           id: m.user_id, username: m.username, is_admin: !!m.is_admin
         })),
@@ -865,6 +865,19 @@ async function handleRequest(req, env) {
         await DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(m.user_id, groupId).run()
       }
       return respond({ success: true, messageId: id })
+    }
+
+    // 群禁言切换（仅管理员）
+    if (path.startsWith('/api/groups/') && path.endsWith('/mute') && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      const member = await DB.prepare('SELECT user_id, is_admin FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, userId).first()
+      if (!member || !member.is_admin) return respondError('无权限操作', 403)
+      const group = await DB.prepare('SELECT is_muted FROM groups WHERE id = ?').bind(groupId).first()
+      const newMuted = group.is_muted ? 0 : 1
+      await DB.prepare('UPDATE groups SET is_muted = ? WHERE id = ?').bind(newMuted, groupId).run()
+      return respond({ success: true, is_muted: !!newMuted })
     }
 
     // 解散群聊（仅群主）

@@ -238,6 +238,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
     try {
       const data = await api.groups.get(effectiveChatId)
       setGroupInfo(data.group)
+      setIsGroupMuted(!!data.group?.is_muted)
       setGroupMembers(data.members || [])
     } catch (e) {
       console.error('loadGroupMembers error:', e)
@@ -277,6 +278,26 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
       onBack()
     } catch (e) {
       alert(e.message || '解散失败')
+    }
+  }
+
+  const handleToggleMute = async () => {
+    try {
+      await api.groups.toggleMute(effectiveChatId)
+      setIsGroupMuted(prev => !prev)
+      await loadGroupMembers()
+    } catch (e) {
+      alert(e.message || '操作失败')
+    }
+  }
+
+  const handleLeaveGroup = async () => {
+    if (!confirm('确定退出本群？')) return
+    try {
+      await api.groups.leave(effectiveChatId)
+      onBack()
+    } catch (e) {
+      alert(e.message || '退出失败')
     }
   }
 
@@ -395,7 +416,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
   const stored = localStorage.getItem('user')
   const currentUser = stored ? JSON.parse(stored) : null
   const isSelf = (senderId) => senderId === currentUser?.id
-  const isGroupAdmin = () => groupInfo && currentUser && groupInfo.creator_id === currentUser.id
+  const isGroupAdmin = () => groupInfo && currentUser && (groupInfo.is_admin || groupInfo.creator_id === currentUser.id)
 
   // ── 解析红包消息 ──────────────────────────────────
   const parsePacketMsg = (msg) => {
@@ -562,9 +583,6 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
         <div style={styles.contactInfo}>
           <div style={isGroup ? styles.groupAvatar : styles.avatar}>{isGroup ? '群' : contact.username?.[0]?.toUpperCase()}</div>
           <span style={styles.contactName}>{contact.username}</span>
-          <span style={{ ...styles.wsStatus, background: wsConnected ? '#22c55e' : '#6c6c80' }} title={wsConnected ? '实时在线' : '离线'}>
-            ●
-          </span>
         </div>
         <div style={styles.headerActions}>
           {isGroup && (
@@ -781,12 +799,12 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
               handleSend()
             }
           }}
-          placeholder="输入消息..."
+          placeholder={isGroup && isGroupMuted ? '群已禁言' : '输入消息...'}
         />
         <button
           onClick={handleSend}
-          style={{ ...styles.sendBtn, opacity: input.trim() ? 1 : 0.4 }}
-          disabled={!input.trim()}
+          style={{ ...styles.sendBtn, opacity: input.trim() && !isGroupMuted ? 1 : 0.4 }}
+          disabled={!input.trim() || isGroupMuted}
         >
           <Send size={20} fill="currentColor" />
         </button>
@@ -811,7 +829,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
                     {m.is_admin && <span style={styles.adminBadge}>管理员</span>}
                     {m.user_id === groupInfo?.creator_id && <span style={styles.ownerBadge}>群主</span>}
                   </div>
-                  {(isGroupAdmin() || m.user_id === groupInfo?.creator_id) && m.user_id !== JSON.parse(localStorage.getItem('user') || '{}').id && (
+          {(isGroupAdmin() || m.user_id === groupInfo?.creator_id) && m.user_id !== currentUser?.id && (
                     <button style={styles.kickBtn} onClick={() => handleKickMember(m.user_id)}>踢出</button>
                   )}
                 </div>
@@ -840,10 +858,24 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
               </div>
             )}
 
-            {/* 解散群 */}
+            {/* 管理员操作 */}
             {isGroupAdmin() && (
-              <button style={styles.dissolveBtn} onClick={handleDissolveGroup}>
-                解散群聊
+              <>
+                <button
+                  style={{ ...styles.dissolveBtn, background: isGroupMuted ? '#22c55e' : '#f59e0b', marginBottom: 8 }}
+                  onClick={handleToggleMute}
+                >
+                  {isGroupMuted ? '解除群禁言' : '群聊禁言'}
+                </button>
+                <button style={styles.dissolveBtn} onClick={handleDissolveGroup}>
+                  解散群聊
+                </button>
+              </>
+            )}
+            {/* 普通成员退出群聊 */}
+            {!isGroupAdmin() && (
+              <button style={{ ...styles.dissolveBtn, background: '#6c6c80' }} onClick={handleLeaveGroup}>
+                退出群聊
               </button>
             )}
           </div>
