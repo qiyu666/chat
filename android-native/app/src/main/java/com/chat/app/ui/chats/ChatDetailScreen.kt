@@ -24,12 +24,15 @@ import coil.compose.AsyncImage
 import com.chat.app.chatContainer
 import com.chat.app.data.model.ChatMessage
 import com.chat.app.data.model.SendMessageRequest
+import com.chat.app.data.repository.ChatRepository
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
-fun ChatDetailScreen(chatId: Int, onBack: () -> Unit, onSnack: (String) -> Unit) {
+fun ChatDetailScreen(chatId: String, onBack: () -> Unit, onSnack: (String) -> Unit) {
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application
     val container = app.chatContainer
+    val repository = ChatRepository(container.api, container, container.moshi)
     val scope = rememberCoroutineScope()
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var input by remember { mutableStateOf("") }
@@ -41,13 +44,16 @@ fun ChatDetailScreen(chatId: Int, onBack: () -> Unit, onSnack: (String) -> Unit)
 
     suspend fun load() {
         loading = true
-        runCatching { container.api.getMessages(chatId).body().orEmpty() }
-            .onSuccess {
-                messages = it
-                if (it.isNotEmpty()) {
-                    runCatching { listState.animateScrollToItem(it.size - 1) }
-                }
-            }.onFailure { onSnack(it.message ?: "加载消息失败") }
+        try {
+            val msgs = withTimeoutOrNull(15_000L) { repository.getMessages(chatId) }
+            messages = msgs ?: emptyList()
+            android.util.Log.d("ChatDetail", "load done: ${messages.size} msgs")
+            if (messages.isNotEmpty()) runCatching { listState.animateScrollToItem(messages.size - 1) }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatDetail", "load failed: ${e.message}")
+            onSnack("加载消息失败：${e.message}")
+            messages = emptyList()
+        }
         loading = false
     }
 

@@ -23,22 +23,24 @@ import coil.compose.AsyncImage
 import com.chat.app.chatContainer
 import com.chat.app.data.model.ChatSession
 import com.chat.app.data.model.ChatMessage
+import com.chat.app.data.repository.ChatRepository
 import kotlinx.coroutines.launch
 
 @Composable
 fun ChatListScreen(onSnack: (String) -> Unit) {
     val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application
     val container = app.chatContainer
+    val repository = ChatRepository(container.api, container, container.moshi)
     var sessions by remember { mutableStateOf<List<ChatSession>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    var openChatId by remember { mutableStateOf<Int?>(null) }
+    var openChatId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     suspend fun refresh() {
         loading = true
-        runCatching { container.api.getChats().body().orEmpty() }
-            .onSuccess { sessions = it }
-            .onFailure { onSnack(it.message ?: "加载失败") }
+        val result = runCatching { repository.getChats() }
+        if (result.isSuccess) sessions = result.getOrNull() ?: emptyList()
+        else onSnack(result.exceptionOrNull()?.message ?: "加载失败")
         loading = false
     }
 
@@ -114,7 +116,7 @@ private fun ChatItem(session: ChatSession, onClick: () -> Unit) {
         ) {
             if (session.avatar.isNullOrBlank()) {
                 Text(
-                    text = session.name.take(1).uppercase(),
+                    text = session.name?.take(1)?.uppercase() ?: "?",
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp
@@ -132,7 +134,7 @@ private fun ChatItem(session: ChatSession, onClick: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = session.name,
+                    text = session.name ?: "未知",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f),

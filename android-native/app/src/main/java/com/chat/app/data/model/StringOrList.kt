@@ -1,6 +1,7 @@
 package com.chat.app.data.model
 
 import com.squareup.moshi.*
+import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 
 data class StringOrList(val value: List<String>) {
@@ -16,8 +17,12 @@ class StringOrListJsonAdapterFactory : JsonAdapter.Factory {
         annotations: Set<Annotation>,
         moshi: Moshi
     ): JsonAdapter<*>? {
-        if (type != StringOrList::class.java) return null
         if (annotations.isNotEmpty()) return null
+        val rawType = when {
+            type is ParameterizedType -> type.rawType
+            else -> type
+        }
+        if (rawType !== StringOrList::class.java) return null
         return StringOrListJsonAdapter()
     }
 }

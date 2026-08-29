@@ -88,7 +88,7 @@ class WebSocketManager(private val baseUrl: String, private val token: String) {
                                 val chatMsg = parseChatMessage(obj)
                                 if (chatMsg != null) {
                                     val result = _channel.trySend(chatMsg)
-                                    Log.d(TAG, "WS emitted: id=${chatMsg.id}, isMine=${chatMsg.safe_sender_id == null || chatMsg.sender_id.toString() == currentChatId}, sent=${result.isSuccess}, closing=${result.isClosed}")
+                                    Log.d(TAG, "WS emitted: id=${chatMsg.id}, isMine=${chatMsg.safe_sender_id == null || chatMsg.sender_id == currentChatId}, sent=${result.isSuccess}, closing=${result.isClosed}")
                                 } else {
                                     Log.w(TAG, "WS new_message parsed to null, skipping")
                                 }
@@ -98,8 +98,8 @@ class WebSocketManager(private val baseUrl: String, private val token: String) {
                                 val claimed = obj.optBoolean("claimed", true)
                                 if (packetId != null) {
                                     val claimMsg = ChatMessage(
-                                        id = 0,
-                                        sender_id = 0,
+                                        id = "",
+                                        sender_id = "",
                                         packet_id = packetId,
                                         claimed = claimed
                                     )
@@ -143,9 +143,7 @@ class WebSocketManager(private val baseUrl: String, private val token: String) {
     private fun parseChatMessage(obj: JSONObject): ChatMessage? {
         return runCatching {
             val idStr = obj.optString("id")
-            val id = idStr.toIntOrNull() ?: return null
-            val senderIdStr = obj.optString("sender_id")
-            val senderId = senderIdStr.toIntOrNull()
+            val senderIdStr = obj.optString("sender_id").ifBlank { null }
             val senderName = obj.optString("sender_name").ifBlank { null }
                 ?: obj.optString("senderUsername").ifBlank { null }
             val content = obj.optString("content").ifBlank { null }
@@ -166,14 +164,14 @@ class WebSocketManager(private val baseUrl: String, private val token: String) {
             }
 
             ChatMessage(
-                id = id,
-                sender_id = senderId ?: 0,
+                id = idStr,
+                sender_id = senderIdStr ?: "",
                 sender_name = senderName,
                 content = content,
                 image_url = imageUrl,
                 created_at = createdAt,
                 is_mine = false,
-                safe_sender_id = senderId,
+                safe_sender_id = senderIdStr,
                 packet_id = packetId,
                 claimed = claimed
             )

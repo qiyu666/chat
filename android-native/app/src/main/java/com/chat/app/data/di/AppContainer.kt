@@ -7,6 +7,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.chat.app.data.api.ChatApi
+import com.chat.app.data.model.ChatMessageJsonAdapterFactory
+import com.chat.app.data.model.ChatSessionJsonAdapterFactory
+import com.chat.app.data.model.MessagesResponseJsonAdapterFactory
 import com.chat.app.data.model.StringOrListJsonAdapterFactory
 import com.chat.app.data.model.User
 import com.chat.app.data.model.UserJsonAdapterFactory
@@ -45,6 +48,9 @@ class AppContainer(private val context: Context) {
 
     val moshi: Moshi by lazy {
         Moshi.Builder()
+            .add(MessagesResponseJsonAdapterFactory())
+            .add(ChatMessageJsonAdapterFactory())
+            .add(ChatSessionJsonAdapterFactory())
             .add(StringOrListJsonAdapterFactory())
             .add(UserJsonAdapterFactory())
             .addLast(KotlinJsonAdapterFactory())
@@ -64,7 +70,7 @@ class AppContainer(private val context: Context) {
 
     private val okHttpClient: OkHttpClient by lazy {
         val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
+            level = HttpLoggingInterceptor.Level.BODY
         }
         OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)

@@ -33,7 +33,7 @@ interface ChatApi {
     suspend fun addFriend(@Body body: Map<String, String>): Response<MessageResponse>
 
     @DELETE("contacts/{id}")
-    suspend fun deleteContact(@Path("id") id: Int): Response<MessageResponse>
+    suspend fun deleteContact(@Path("id") id: String): Response<MessageResponse>
 
     // ===== 好友申请 =====
     @GET("friend-requests/incoming")
@@ -43,21 +43,21 @@ interface ChatApi {
     suspend fun sendFriendRequest(@Body body: Map<String, String>): Response<MessageResponse>
 
     @POST("friend-requests/{id}/accept")
-    suspend fun acceptRequest(@Path("id") id: Int): Response<MessageResponse>
+    suspend fun acceptRequest(@Path("id") id: String): Response<MessageResponse>
 
     @POST("friend-requests/{id}/reject")
-    suspend fun rejectRequest(@Path("id") id: Int): Response<MessageResponse>
+    suspend fun rejectRequest(@Path("id") id: String): Response<MessageResponse>
 
     // ===== 聊天 =====
     @GET("chats")
     suspend fun getChats(): Response<List<ChatSession>>
 
     @GET("chats/{chatId}/messages")
-    suspend fun getMessages(@Path("chatId") chatId: Int): Response<List<ChatMessage>>
+    suspend fun getMessages(@Path("chatId") chatId: String): Response<MessagesResponse>
 
     @POST("chats/{chatId}/messages")
     suspend fun sendMessage(
-        @Path("chatId") chatId: Int,
+        @Path("chatId") chatId: String,
         @Body req: SendMessageRequest
     ): Response<ChatMessage>
 

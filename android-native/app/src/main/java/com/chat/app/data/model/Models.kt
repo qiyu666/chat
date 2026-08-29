@@ -19,39 +19,43 @@ data class RegisterRequest(
 @JsonClass(generateAdapter = true)
 data class AuthResponse(
     val token: String,
-    val user: User
+    val user: User?
 )
 
 @JsonClass(generateAdapter = true)
 data class User(
-    val id: Int,
+    val id: String,
     val username: String,
-    val chat_code: String?,
+    val chat_code: String? = null,
     val avatar_url: String? = null,
-    val nickname: String? = null
+    val nickname: String? = null,
+    val balance: String? = null,
+    val has_payment_password: Boolean? = null
 )
 
 // ============ 聊天 ============
-@JsonClass(generateAdapter = true)
+// NOTE: intentionally no @JsonClass - custom adapter handles both old/new server formats
 data class ChatSession(
-    val id: Int,
-    val name: String,
+    val id: String,
+    val name: String? = null,
     val avatar: String? = null,
     val last_message: String? = null,
     val last_at: String? = null,
-    val unread: Int = 0
+    val unread: Int = 0,
+    // Raw friend D1 ID from server (not exposed in UI, used for username lookup)
+    val friend_id_raw: String? = null
 )
 
-@JsonClass(generateAdapter = true)
+// NOTE: intentionally no @JsonClass - custom ChatMessageJsonAdapterFactory handles all parsing
 data class ChatMessage(
-    val id: Int,
-    val sender_id: Int,
+    val id: String,
+    val sender_id: String? = null,
     val sender_name: String? = null,
     val content: String? = null,
     val image_url: String? = null,
     val created_at: String? = null,
     val is_mine: Boolean? = null,
-    val safe_sender_id: Int? = null,
+    val safe_sender_id: String? = null,
     val packet_id: String? = null,
     val claimed: Boolean? = null
 )
@@ -65,17 +69,16 @@ data class SendMessageRequest(
 // ============ 联系人 ============
 @JsonClass(generateAdapter = true)
 data class Contact(
-    val id: Int,
-    val user_id: Int,
+    val id: String,
     val username: String,
-    val nickname: String? = null,
-    val avatar_url: String? = null,
-    val chat_code: String? = null
+    val chatId: String? = null,
+    val lastMessage: String? = null,
+    val unread: Int = 0
 )
 
 @JsonClass(generateAdapter = true)
 data class FriendRequest(
-    val id: Int,
+    val id: String,
     val from_username: String,
     val message: String? = null,
     val created_at: String

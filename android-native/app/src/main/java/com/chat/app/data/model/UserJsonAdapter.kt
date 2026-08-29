@@ -1,20 +1,21 @@
 package com.chat.app.data.model
 
 import com.squareup.moshi.*
+import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
 
-/**
- * 兼容旧版数据：后端 user.id 可能是整数（1787...）或字符串（"id_xxx"）。
- * 统一转换成 String。
- */
 class UserJsonAdapterFactory : JsonAdapter.Factory {
     override fun create(
         type: Type,
         annotations: Set<Annotation>,
         moshi: Moshi
     ): JsonAdapter<*>? {
-        if (type != User::class.java) return null
         if (annotations.isNotEmpty()) return null
+        val rawType = when {
+            type is ParameterizedType -> type.rawType
+            else -> type
+        }
+        if (rawType !== User::class.java) return null
         return UserJsonAdapter()
     }
 }
@@ -22,11 +23,11 @@ class UserJsonAdapterFactory : JsonAdapter.Factory {
 class UserJsonAdapter : JsonAdapter<User>() {
     override fun fromJson(reader: JsonReader): User? {
         if (reader.peek() == JsonReader.Token.NULL) {
-            reader.nextNull<String>()
+            reader.nextNull<Any>()
             return null
         }
         reader.beginObject()
-        var id: Int? = null
+        var id: String? = null
         var username: String? = null
         var chatCode: String? = null
         var avatarUrl: String? = null
@@ -34,26 +35,29 @@ class UserJsonAdapter : JsonAdapter<User>() {
             val name = reader.nextName()
             when (name) {
                 "id" -> {
-                    if (reader.peek() == JsonReader.Token.NUMBER) {
-                        id = reader.nextInt()
-                    } else {
-                        id = reader.nextString().toIntOrNull()
-                    }
+                    if (reader.peek() == JsonReader.Token.NULL) reader.nextNull<Any>()
+                    else id = reader.nextString()
+                    android.util.Log.d("UserJsonAdapter", "parsed id='$id'")
                 }
-                "username" -> username = reader.nextString()
-                "chat_code" -> {
-                    if (reader.peek() == JsonReader.Token.NULL) reader.nextNull<String>()
+                "username" -> {
+                    username = reader.nextString()
+                    android.util.Log.d("UserJsonAdapter", "parsed username='$username'")
+                }
+                "chat_code", "chatCode" -> {
+                    if (reader.peek() == JsonReader.Token.NULL) reader.nextNull<Any>()
                     else chatCode = reader.nextString()
                 }
-                "avatar_url" -> {
-                    if (reader.peek() == JsonReader.Token.NULL) reader.nextNull<String>()
+                "avatar_url", "avatarUrl" -> {
+                    if (reader.peek() == JsonReader.Token.NULL) reader.nextNull<Any>()
                     else avatarUrl = reader.nextString()
                 }
                 else -> reader.skipValue()
             }
         }
         reader.endObject()
-        return if (id != null && username != null) User(id, username, chatCode, avatarUrl) else null
+        val user = if (id != null && username != null) User(id, username, chatCode, avatarUrl) else null
+        android.util.Log.d("UserJsonAdapter", "user result: id=$id, username=$username, user=${user != null}")
+        return user
     }
 
     override fun toJson(writer: JsonWriter, value: User?) {

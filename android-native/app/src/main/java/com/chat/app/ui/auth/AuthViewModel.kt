@@ -38,10 +38,12 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         _uiState.value = s.copy(loading = true, error = null)
         viewModelScope.launch {
             runCatching {
-                when (s.mode) {
+                val result = when (s.mode) {
                     AuthMode.LOGIN -> repository.login(s.username.trim(), s.password)
                     AuthMode.REGISTER -> repository.register(s.username.trim(), s.password, s.chatCode.ifBlank { null })
                 }
+                if (result.user == null) throw IllegalStateException("服务端返回的用户信息为空")
+                result
             }.onSuccess {
                 _uiState.value = _uiState.value.copy(loading = false)
                 onSuccess()

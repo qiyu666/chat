@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.chat.app.chatContainer
+import com.chat.app.ui.chats.ChatDetailScreen
 import com.chat.app.ui.chats.ChatListScreen
 import com.chat.app.ui.contacts.ContactsScreen
 import com.chat.app.ui.moments.MomentsScreen
@@ -33,6 +34,7 @@ fun HomeScaffold(onLogout: () -> Unit) {
     val container = app.chatContainer
     val user by container.userFlow.collectAsStateWithLifecycle(initialValue = null)
     var selectedTab by remember { mutableStateOf(HomeTab.Chats) }
+    var openChatId by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -49,7 +51,7 @@ fun HomeScaffold(onLogout: () -> Unit) {
                     if (top != null) {
                         NotificationHelper.show(
                             app,
-                            "${top.name} 发来${if (newCount > 1) " $newCount 条" else ""}消息",
+                            "${top.name ?: "未知"} 发来${if (newCount > 1) " $newCount 条" else ""}消息",
                             top.last_message ?: "点击查看"
                         )
                     }
@@ -98,17 +100,29 @@ fun HomeScaffold(onLogout: () -> Unit) {
         }
     ) { innerPadding ->
         Box(Modifier.padding(innerPadding)) {
-            when (selectedTab) {
-                HomeTab.Chats -> ChatListScreen(onSnack = {
-                    scope.launch { snackbarHostState.showSnackbar(it) }
-                })
-                HomeTab.Contacts -> ContactsScreen()
-                HomeTab.Moments -> MomentsScreen()
-                HomeTab.Profile -> ProfileScreen(
-                    user = user,
-                    onLogout = onLogout,
+            if (openChatId != null) {
+                ChatDetailScreen(
+                    chatId = openChatId!!,
+                    onBack = { openChatId = null },
                     onSnack = { scope.launch { snackbarHostState.showSnackbar(it) } }
                 )
+            } else {
+                when (selectedTab) {
+                    HomeTab.Chats -> ChatListScreen(onSnack = {
+                        scope.launch { snackbarHostState.showSnackbar(it) }
+                    })
+                    HomeTab.Contacts -> ContactsScreen(
+                        onContactClick = { chatId ->
+                            openChatId = chatId
+                        }
+                    )
+                    HomeTab.Moments -> MomentsScreen()
+                    HomeTab.Profile -> ProfileScreen(
+                        user = user,
+                        onLogout = onLogout,
+                        onSnack = { scope.launch { snackbarHostState.showSnackbar(it) } }
+                    )
+                }
             }
         }
     }

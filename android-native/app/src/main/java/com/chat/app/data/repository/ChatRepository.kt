@@ -3,13 +3,9 @@ package com.chat.app.data.repository
 import com.chat.app.data.api.ChatApi
 import com.chat.app.data.di.AppContainer
 import com.chat.app.data.model.*
-import com.chat.app.data.model.ErrorResponse
 import com.squareup.moshi.Moshi
 import retrofit2.Response
 
-/**
- * 统一封装错误处理；所有 ViewModel 通过 Repository 调用 API。
- */
 class ChatRepository(
     private val api: ChatApi,
     private val container: AppContainer,
@@ -23,13 +19,12 @@ class ChatRepository(
         }.getOrNull() ?: "请求失败 (${res.code()})"
     }
 
-    suspend fun <T> Result<T>.unwrap(): T = getOrElse { throw it }
-
     suspend fun login(username: String, password: String): AuthResponse {
         val res = api.login(LoginRequest(username, password))
         if (res.isSuccessful && res.body() != null) {
             val body = res.body()!!
-            container.saveAuth(body.token, body.user)
+            android.util.Log.d("ChatRepository", "login: token=${body.token?.take(8)}... user=${body.user?.username ?: "null"}")
+            if (body.user != null) container.saveAuth(body.token, body.user)
             return body
         }
         error(parseError(res))
@@ -39,7 +34,8 @@ class ChatRepository(
         val res = api.register(RegisterRequest(username, password, chatCode))
         if (res.isSuccessful && res.body() != null) {
             val body = res.body()!!
-            container.saveAuth(body.token, body.user)
+            android.util.Log.d("ChatRepository", "register: token=${body.token?.take(8)}... user=${body.user?.username ?: "null"}")
+            if (body.user != null) container.saveAuth(body.token, body.user)
             return body
         }
         error(parseError(res))
@@ -52,16 +48,75 @@ class ChatRepository(
 
     suspend fun logout() = container.clearAuth()
 
-    suspend fun getChats(): List<ChatSession> = api.getChats().body() ?: emptyList()
-    suspend fun getMessages(chatId: Int): List<ChatMessage> = api.getMessages(chatId).body() ?: emptyList()
-    suspend fun sendMessage(chatId: Int, content: String?, imageUrl: String?): ChatMessage? {
+    suspend fun getChats(): List<ChatSession> {
+        return runCatching {
+            val sessions = api.getChats().body() ?: emptyList()
+            if (sessions.isEmpty()) return@runCatching emptyList()
+            // Enrich chat session names using contacts data (server returns friend_id=D1ID, not username)
+            val contacts = runCatching { api.getContacts().body() ?: emptyList() }.getOrNull() ?: emptyList()
+            val usernameMap = contacts.associateBy({ it.id }, { it.username })
+            sessions.map { s ->
+                val friendId = s.friend_id_raw
+                if (friendId != null && usernameMap.containsKey(friendId)) {
+                    s.copy(name = usernameMap[friendId])
+                } else {
+                    s
+                }
+            }
+        }
+            .onFailure { android.util.Log.e("ChatRepository", "getChats failed: ${it.message}") }
+            .getOrElse { emptyList() }
+    }
+
+    suspend fun getMessages(chatId: String): List<ChatMessage> {
+        val result = api.getMessages(chatId)
+        if (!result.isSuccessful) {
+            val errMsg = parseError(result)
+            android.util.Log.e("ChatRepository", "getMessages ${result.code()}: $errMsg")
+            error(errMsg)
+        }
+        val body = result.body()
+        android.util.Log.d("ChatRepository", "getMessages $chatId -> ${body?.messages?.size ?: 0} messages")
+        return body?.messages ?: emptyList()
+    }
+
+    suspend fun sendMessage(chatId: String, content: String?, imageUrl: String?): ChatMessage? {
         val res = api.sendMessage(chatId, SendMessageRequest(content, imageUrl))
         if (!res.isSuccessful) error(parseError(res))
         return res.body()
     }
 
-    suspend fun getContacts(): List<Contact> = api.getContacts().body() ?: emptyList()
-    suspend fun searchUser(query: String): List<User> = api.searchUser(query).body() ?: emptyList()
+    suspend fun getContacts(): List<Contact> {
+        return runCatching { api.getContacts().body() ?: emptyList() }
+            .onFailure { android.util.Log.e("ChatRepository", "getContacts failed: ${it.message}") }
+            .getOrElse { emptyList() }
+    }
+
+    suspend fun searchUser(query: String): List<User> {
+        return runCatching { api.searchUser(query).body() ?: emptyList() }
+            .onFailure { android.util.Log.e("ChatRepository", "searchUser failed: ${it.message}") }
+            .getOrElse { emptyList() }
+    }
+
+    suspend fun addFriend(username: String): Boolean {
+        val res = api.addFriend(mapOf("username" to username))
+        return res.isSuccessful
+    }
+
+    suspend fun deleteContact(id: String): Boolean {
+        val res = api.deleteContact(id)
+        return res.isSuccessful
+    }
+
+    suspend fun incomingRequests(): List<FriendRequest> = api.incomingRequests().body() ?: emptyList()
+    suspend fun sendFriendRequest(username: String, message: String? = null): Boolean {
+        val body = mutableMapOf<String, String>("username" to username)
+        if (!message.isNullOrBlank()) body["message"] = message
+        val res = api.sendFriendRequest(body)
+        return res.isSuccessful
+    }
+    suspend fun acceptRequest(id: String): Boolean = api.acceptRequest(id).isSuccessful
+    suspend fun rejectRequest(id: String): Boolean = api.rejectRequest(id).isSuccessful
 
     suspend fun getMoments(): List<Moment> {
         val res = api.getMoments()
@@ -86,8 +141,9 @@ class ChatRepository(
     }
 
     suspend fun getComments(momentId: String): List<MomentComment> {
-        val res = api.getComments(momentId)
-        return if (res.isSuccessful) res.body() ?: emptyList() else emptyList()
+        return runCatching { api.getComments(momentId).body() ?: emptyList() }
+            .onFailure { android.util.Log.e("ChatRepository", "getComments failed: ${it.message}") }
+            .getOrElse { emptyList() }
     }
 
     suspend fun addComment(momentId: String, content: String): Boolean {
