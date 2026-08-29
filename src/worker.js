@@ -788,10 +788,17 @@ async function handleRequest(req, env) {
         JOIN users u ON u.id = gm.user_id
         WHERE gm.group_id = ?
       `).bind(groupId).all()
-      return respond({ id: group.id, name: group.name, creator_id: group.creator_id,
+      const msgRows = await DB.prepare(
+        `SELECT m.*, u.username as sender_name FROM messages m
+         JOIN users u ON m.sender_id = u.id
+         WHERE m.chat_id = ? ORDER BY m.created_at ASC LIMIT 100`
+      ).bind(groupId).all()
+      return respond({
+        id: group.id, name: group.name, creator_id: group.creator_id,
         members: (memberRows.results || []).map(m => ({
           id: m.user_id, username: m.username, is_admin: !!m.is_admin
-        }))
+        })),
+        messages: (msgRows.results || []).map(m => ({ ...m, sender_id: String(m.sender_id), safe_sender_id: String(m.sender_id), redPacketId: m.packet_id || null, sender_name: m.sender_name }))
       })
     }
 
