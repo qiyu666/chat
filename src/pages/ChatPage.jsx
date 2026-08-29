@@ -21,6 +21,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
   const [sendingImage, setSendingImage] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [packetPwdError, setPacketPwdError] = useState('')
+  const [wsConnected, setWsConnected] = useState(false)
   const fileInputRef = useRef(null)
 
   const handleCloseResult = () => {
@@ -433,7 +434,11 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
   }
 
   return (
-    <div style={styles.container}
+    <>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+      <div style={styles.container}
       onDragOver={(e) => e.preventDefault()}
       onDragEnter={(e) => {
         if (e.dataTransfer?.files?.length > 0) setDragOver(true)
@@ -504,8 +509,11 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
       </div>
 
       <div data-chat-messages style={styles.messages} onScroll={handleMessageScroll}>
-        {loading && messages.length === 0 ? (
-          <div style={styles.loading}>加载中...</div>
+        {loading ? (
+          <div style={styles.loadingWrap}>
+            <div style={styles.spinner} />
+            <span style={styles.loadingText}>加载中...</span>
+          </div>
         ) : messages.length === 0 ? (
           <div style={styles.empty}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
@@ -678,6 +686,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
         </button>
       </div>
     </div>
+    </>
   )
 }
 
@@ -720,6 +729,15 @@ const styles = {
     backdropFilter: 'blur(6px)'
   },
   loading: { textAlign: 'center', color: '#6c6c80', padding: 40 },
+  loadingWrap: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 },
+  spinner: {
+    width: 36, height: 36,
+    border: '3px solid #2a2a4a',
+    borderTopColor: '#e94560',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite'
+  },
+  loadingText: { color: '#6c6c80', fontSize: 14 },
   empty: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6c6c80' },
   msgAvatarLeft: {
     width: 36, height: 36, borderRadius: '50%',
