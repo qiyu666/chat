@@ -179,6 +179,9 @@ const api = {
     },
     sendMessage(groupId, content, imageUrl = null) {
       return api.request('POST', `/groups/${groupId}/messages`, { content, imageUrl })
+    },
+    dissolve(groupId) {
+      return api.request('DELETE', `/groups/${groupId}`)
     }
   }
 }

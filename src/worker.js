@@ -860,6 +860,21 @@ async function handleRequest(req, env) {
       return respond({ success: true, messageId: id })
     }
 
+    // 解散群聊（仅群主）
+    if (path.startsWith('/api/groups/') && method === 'DELETE') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      const group = await DB.prepare('SELECT id, creator_id FROM groups WHERE id = ?').bind(groupId).first()
+      if (!group) return respondError('群不存在', 404)
+      if (group.creator_id !== userId) return respondError('只有群主可以解散群聊', 403)
+      await DB.prepare('DELETE FROM group_members WHERE group_id = ?').bind(groupId).run()
+      await DB.prepare('DELETE FROM messages WHERE chat_id = ?').bind(groupId).run()
+      await DB.prepare('DELETE FROM unread_counts WHERE chat_id = ?').bind(groupId).run()
+      await DB.prepare('DELETE FROM groups WHERE id = ?').bind(groupId).run()
+      return respond({ success: true })
+    }
+
     return respondError('Not Found', 404)
   }
 

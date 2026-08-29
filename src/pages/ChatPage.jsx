@@ -38,6 +38,14 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
   const [packetOpenAnim, setPacketOpenAnim] = useState(false)
   const [packetOpenData, setPacketOpenData] = useState(null) // 缓存开红包时的消息数据，防止re-render丢失
 
+  // 群成员管理状态
+  const [showMemberManage, setShowMemberManage] = useState(false)
+  const [groupMembers, setGroupMembers] = useState([])
+  const [groupInfo, setGroupInfo] = useState(null)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+
   const bottomRef = useRef(null)
   const isAtBottomRef = useRef(true)
   const userScrolledUpRef = useRef(false)
@@ -196,26 +204,94 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
     }
     setInput('')
     try {
-      await api.messages.send(chatId, content)
-      ChatWebSocket.send({ type: 'chat_message', content })
-      justSentRef.current = true
-      const currentUser = localStorage.getItem('user')
-        ? JSON.parse(localStorage.getItem('user'))
-        : null
-      setMessages(prev => {
-        const msg = {
-          id: 'temp_' + Date.now(),
-          sender_id: currentUser?.id,
-          senderUsername: currentUser?.username,
-          content,
-          created_at: new Date().toISOString()
-        }
-        lastMsgCountRef.current = prev.length + 1
-        return [...prev, msg]
-      })
+      if (isGroup) {
+        await api.groups.sendMessage(effectiveChatId, content)
+        justSentRef.current = true
+        await loadMessages()
+      } else {
+        await api.messages.send(chatId, content)
+        ChatWebSocket.send({ type: 'chat_message', content })
+        justSentRef.current = true
+        const currentUser = localStorage.getItem('user')
+          ? JSON.parse(localStorage.getItem('user'))
+          : null
+        setMessages(prev => {
+          const msg = {
+            id: 'temp_' + Date.now(),
+            sender_id: currentUser?.id,
+            senderUsername: currentUser?.username,
+            content,
+            created_at: new Date().toISOString()
+          }
+          lastMsgCountRef.current = prev.length + 1
+          return [...prev, msg]
+        })
+      }
     } catch (e) {
       console.error('send error:', e)
       setInput(content)
+    }
+  }
+
+  const loadGroupMembers = async () => {
+    if (!effectiveChatId) return
+    try {
+      const data = await api.groups.get(effectiveChatId)
+      setGroupInfo(data.group)
+      setGroupMembers(data.members || [])
+    } catch (e) {
+      console.error('loadGroupMembers error:', e)
+    }
+  }
+
+  const handleMemberManageOpen = async () => {
+    setShowMemberManage(true)
+    await loadGroupMembers()
+  }
+
+  const handleAddMember = async (user) => {
+    if (!effectiveChatId) return
+    try {
+      await api.groups.addMember(effectiveChatId, user.id)
+      await loadGroupMembers()
+    } catch (e) {
+      alert(e.message || '添加失败')
+    }
+  }
+
+  const handleKickMember = async (userId) => {
+    if (!confirm('确定踢出该成员？')) return
+    try {
+      await api.groups.removeMember(effectiveChatId, userId)
+      await loadGroupMembers()
+    } catch (e) {
+      alert(e.message || '踢出失败')
+    }
+  }
+
+  const handleDissolveGroup = async () => {
+    if (!confirm('确定解散本群？所有成员将失去联系，此操作不可恢复。')) return
+    try {
+      await api.groups.dissolve(effectiveChatId)
+      alert('群已解散')
+      onBack()
+    } catch (e) {
+      alert(e.message || '解散失败')
+    }
+  }
+
+  const handleSearchMember = async (keyword) => {
+    setSearchKeyword(keyword)
+    if (!keyword.trim()) { setSearchResults([]); return }
+    setSearching(true)
+    try {
+      const data = await api.contacts.search(keyword)
+      const currentIds = new Set(groupMembers.map(m => m.user_id))
+      setSearchResults((data.users || []).filter(u => !currentIds.has(u.id) && u.id !== JSON.parse(localStorage.getItem('user') || '{}').id))
+    } catch (e) {
+      console.error('search error:', e)
+    } finally {
+      setSearching(false)
     }
   }
 
@@ -319,6 +395,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
   const stored = localStorage.getItem('user')
   const currentUser = stored ? JSON.parse(stored) : null
   const isSelf = (senderId) => senderId === currentUser?.id
+  const isGroupAdmin = () => groupInfo && currentUser && groupInfo.creator_id === currentUser.id
 
   // ── 解析红包消息 ──────────────────────────────────
   const parsePacketMsg = (msg) => {
@@ -490,6 +567,11 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
           </span>
         </div>
         <div style={styles.headerActions}>
+          {isGroup && (
+            <button style={styles.iconBtn} title="群设置" onClick={handleMemberManageOpen}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 1 0 4.93 19.07"/></svg>
+            </button>
+          )}
           <button style={styles.iconBtn} title="清除消息" onClick={async () => {
             if (!confirm('确定要清除所有消息吗？')) return
             try {
@@ -678,6 +760,64 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
           <Send size={20} fill="currentColor" />
         </button>
       </div>
+
+      {/* 群成员管理弹窗 */}
+      {showMemberManage && (
+        <div style={styles.memberOverlay} onClick={() => setShowMemberManage(false)}>
+          <div style={styles.memberModal} onClick={e => e.stopPropagation()}>
+            <div style={styles.memberHeader}>
+              <span style={styles.memberTitle}>{groupInfo?.name || '群成员'}</span>
+              <button style={styles.closeBtn} onClick={() => setShowMemberManage(false)}>✕</button>
+            </div>
+
+            {/* 成员列表 */}
+            <div style={styles.memberList}>
+              {groupMembers.map(m => (
+                <div key={m.user_id} style={styles.memberItem}>
+                  <div style={styles.memberAvatar}>{m.username?.[0]?.toUpperCase() || '?'}</div>
+                  <div style={styles.memberInfo}>
+                    <span style={styles.memberName}>{m.username || '未知'}</span>
+                    {m.is_admin && <span style={styles.adminBadge}>管理员</span>}
+                    {m.user_id === groupInfo?.creator_id && <span style={styles.ownerBadge}>群主</span>}
+                  </div>
+                  {(isGroupAdmin() || m.user_id === groupInfo?.creator_id) && m.user_id !== JSON.parse(localStorage.getItem('user') || '{}').id && (
+                    <button style={styles.kickBtn} onClick={() => handleKickMember(m.user_id)}>踢出</button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* 添加成员 */}
+            <div style={styles.searchWrap}>
+              <input
+                style={styles.searchInput}
+                placeholder="搜索联系人添加..."
+                value={searchKeyword}
+                onChange={e => handleSearchMember(e.target.value)}
+              />
+              {searching && <span style={styles.searching}>搜索中...</span>}
+            </div>
+            {searchResults.length > 0 && (
+              <div style={styles.searchResults}>
+                {searchResults.map(u => (
+                  <div key={u.id} style={styles.searchResultItem} onClick={() => handleAddMember(u)}>
+                    <div style={styles.memberAvatar}>{u.username?.[0]?.toUpperCase() || '?'}</div>
+                    <span style={styles.memberName}>{u.username}</span>
+                    <span style={styles.addBtn}>+ 添加</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 解散群 */}
+            {isGroupAdmin() && (
+              <button style={styles.dissolveBtn} onClick={handleDissolveGroup}>
+                解散群聊
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1119,5 +1259,69 @@ const styles = {
     flexShrink: 0,
     border: 'none',
     cursor: 'pointer'
+  },
+
+  // ── 群成员管理 ────────────────────────────────────
+  memberOverlay: {
+    position: 'fixed', inset: 0, zIndex: 200,
+    background: 'rgba(0,0,0,0.7)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    backdropFilter: 'blur(4px)'
+  },
+  memberModal: {
+    width: '92%', maxWidth: 400, maxHeight: '80vh',
+    background: '#1a1a2e', borderRadius: 16,
+    display: 'flex', flexDirection: 'column',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+    overflow: 'hidden'
+  },
+  memberHeader: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '16px 16px 12px', borderBottom: '1px solid #2a2a4a'
+  },
+  memberTitle: { fontSize: 17, fontWeight: 700, color: '#fff' },
+  closeBtn: {
+    background: 'none', border: 'none', color: '#6c6c80', cursor: 'pointer',
+    fontSize: 18, padding: '4px 8px', borderRadius: 8
+  },
+  memberList: {
+    flex: 1, overflowY: 'auto', padding: '8px 0'
+  },
+  memberItem: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '12px 16px'
+  },
+  memberAvatar: {
+    width: 36, height: 36, borderRadius: '50%',
+    background: '#2a2a4a', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    fontSize: 14, fontWeight: 600, color: '#fff', flexShrink: 0
+  },
+  memberInfo: { flex: 1, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 },
+  memberName: { fontSize: 15, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  adminBadge: { fontSize: 11, background: '#f59e0b', color: '#000', padding: '2px 6px', borderRadius: 4, fontWeight: 600, flexShrink: 0 },
+  ownerBadge: { fontSize: 11, background: '#e94560', color: '#fff', padding: '2px 6px', borderRadius: 4, fontWeight: 600, flexShrink: 0 },
+  kickBtn: {
+    fontSize: 12, color: '#e94560', background: 'none', border: '1px solid #e94560',
+    borderRadius: 6, padding: '4px 10px', cursor: 'pointer', flexShrink: 0
+  },
+  searchWrap: {
+    display: 'flex', alignItems: 'center', gap: 8,
+    padding: '10px 16px', borderBottom: '1px solid #2a2a4a'
+  },
+  searchInput: {
+    flex: 1, background: '#0f0f1a', border: '1px solid #2a2a4a', borderRadius: 8,
+    padding: '8px 12px', color: '#fff', fontSize: 14, outline: 'none'
+  },
+  searching: { fontSize: 12, color: '#6c6c80' },
+  searchResults: { maxHeight: 160, overflowY: 'auto' },
+  searchResultItem: {
+    display: 'flex', alignItems: 'center', gap: 12,
+    padding: '10px 16px', cursor: 'pointer', transition: 'background 0.15s'
+  },
+  addBtn: { fontSize: 13, color: '#22c55e', marginLeft: 'auto', fontWeight: 600, flexShrink: 0 },
+  dissolveBtn: {
+    margin: '12px 16px 16px', padding: '12px',
+    background: 'transparent', border: '1px solid #e94560', borderRadius: 10,
+    color: '#e94560', fontSize: 14, fontWeight: 600, cursor: 'pointer'
   }
 }
