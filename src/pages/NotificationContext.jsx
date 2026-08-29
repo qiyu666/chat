@@ -1,5 +1,5 @@
 import { createContext, useContext, useRef, useEffect, useState } from 'react'
-import ChatWebSocket from '../ws'
+import { ChatWebSocket } from '../ws'
 import { NotificationService } from '../utils/notifications'
 import api from '../api'
 
