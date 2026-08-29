@@ -10,7 +10,7 @@ import AdminLoginPage from './pages/AdminLoginPage'
 import AdminPage from './pages/AdminPage'
 import ErrorBoundary from './ErrorBoundary'
 import { AppProvider, useApp } from './AppContext'
-import { NotificationService } from './utils/notifications'
+import { NotificationProvider, useNotification } from './pages/NotificationContext'
 
 function MainApp() {
   const { user } = useApp()
