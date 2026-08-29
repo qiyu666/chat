@@ -114,13 +114,20 @@ export default function ChatListPage() {
   }
 
   if (showGroupCreate) {
-    return <GroupCreatePage onBack={() => setShowGroupCreate(false)} onCreateGroup={(groupId) => {
+    return <GroupCreatePage onBack={() => setShowGroupCreate(false)} onCreateGroup={async (groupId) => {
       setShowGroupCreate(false)
-      loadGroups()
+      await loadGroups()
       const group = groups.find(g => g.id === groupId)
-      if (group) setActiveGroup(group)
-      else {
-        api.groups.get(groupId).then(g => setActiveGroup(g)).catch(() => {})
+      if (group) {
+        setActiveGroup(group)
+      } else {
+        try {
+          const g = await api.groups.get(groupId)
+          setActiveGroup(g)
+        } catch (e) {
+          console.error('[DEBUG] failed to load group:', e)
+          alert('创建成功但无法打开群聊，请刷新后重试')
+        }
       }
     }} />
   }

@@ -25,7 +25,7 @@ export default function GroupCreatePage({ onBack, onCreateGroup }) {
   }
 
   const handleCreate = async () => {
-    if (!groupName.trim()) return
+    if (!groupName.trim()) { alert('请输入群名称'); return }
     if (selectedMembers.length === 0) { alert('请至少选择1位成员'); return }
     setSending(true)
     try {
@@ -47,7 +47,7 @@ export default function GroupCreatePage({ onBack, onCreateGroup }) {
       <div style={styles.header}>
         <button onClick={onBack} style={styles.backBtn}>‹</button>
         <span style={styles.title}>创建群聊</span>
-        <button onClick={handleCreate} disabled={sending || !groupName.trim() || selectedMembers.length === 0} style={styles.createBtn}>
+        <button onClick={handleCreate} disabled={sending || !groupName.trim() || selectedMembers.length === 0} style={sending || !groupName.trim() || selectedMembers.length === 0 ? styles.createBtnDisabled : styles.createBtn}>
           {sending ? '创建中...' : '创建'}
         </button>
       </div>
