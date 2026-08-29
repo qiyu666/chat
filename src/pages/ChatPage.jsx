@@ -610,25 +610,56 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
             const isImg = isImageUrl(msg.content)
             if (isImg) {
               return (
-                <div key={msg.id} style={{ display: 'flex', justifyContent: self ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
-                  {!self && <div style={styles.msgAvatarLeft}>{msg.senderUsername?.[0]?.toUpperCase() || '?'}</div>}
-                  <div style={self ? styles.imageWrapSelf : styles.imageWrapOther}>
-                    <img src={msg.content} alt="" style={styles.imageMsg} loading="lazy" />
-                  </div>
-                  {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username?.[0]?.toUpperCase()}</div>}
+                <div key={msg.id} style={{ display: 'flex', justifyContent: self ? 'flex-end' : 'flex-start', marginBottom: 12, gap: 8 }}>
+                  {!self && (
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: 'calc(100% - 52px)' }}>
+                      {isGroup && msg.senderUsername && (
+                        <span style={{ fontSize: 12, color: '#6c6c80', paddingLeft: 44, marginBottom: 4 }}>{msg.senderUsername}</span>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, width: '100%' }}>
+                        <div style={styles.msgAvatarLeft}>{msg.senderUsername?.[0]?.toUpperCase() || '?'}</div>
+                        <div style={styles.imageWrapOther}><img src={msg.content} alt="" style={styles.imageMsg} loading="lazy" /></div>
+                      </div>
+                    </div>
+                  )}
+                  {self && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', maxWidth: '75%' }}>
+                      {isGroup && msg.senderUsername && (
+                        <span style={{ fontSize: 12, color: '#6c6c80', paddingRight: 44, marginBottom: 4 }}>{msg.senderUsername}</span>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                        <div style={styles.imageWrapSelf}><img src={msg.content} alt="" style={styles.imageMsg} loading="lazy" /></div>
+                        <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{isGroup ? (currentUser?.username?.[0]?.toUpperCase() || '?') : (contact.username?.[0]?.toUpperCase())}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             }
             return (
-              <div key={msg.id} style={{ display: 'flex', justifyContent: self ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
-                {!self && <div style={styles.msgAvatarLeft}>{msg.senderUsername?.[0]?.toUpperCase() || '?'}</div>}
-                {isGroup && !self && msg.senderUsername && (
-                  <div style={styles.senderName}>{msg.senderUsername}</div>
+              <div key={msg.id} style={{ display: 'flex', justifyContent: self ? 'flex-end' : 'flex-start', marginBottom: 12, gap: 8 }}>
+                {!self && (
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: 'calc(100% - 52px)' }}>
+                    {isGroup && msg.senderUsername && (
+                      <span style={{ fontSize: 12, color: '#6c6c80', paddingLeft: 44, marginBottom: 4 }}>{msg.senderUsername}</span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, width: '100%' }}>
+                      <div style={styles.msgAvatarLeft}>{msg.senderUsername?.[0]?.toUpperCase() || '?'}</div>
+                      <div style={{ ...styles.bubble, ...styles.bubbleOther, alignSelf: isGroup ? 'auto' : 'flex-end' }}>{msg.content}</div>
+                    </div>
+                  </div>
                 )}
-                <div style={{ ...styles.bubble, ...(self ? styles.bubbleSelf : styles.bubbleOther) }}>
-                  {msg.content}
-                </div>
-                {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{isGroup ? (currentUser?.username?.[0]?.toUpperCase() || '?') : (contact.username?.[0]?.toUpperCase())}</div>}
+                {self && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', maxWidth: '75%' }}>
+                    {isGroup && msg.senderUsername && (
+                      <span style={{ fontSize: 12, color: '#6c6c80', paddingRight: 44, marginBottom: 4 }}>{msg.senderUsername}</span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                      <div style={{ ...styles.bubble, ...styles.bubbleSelf, alignSelf: 'flex-end' }}>{msg.content}</div>
+                      <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{isGroup ? (currentUser?.username?.[0]?.toUpperCase() || '?') : (contact.username?.[0]?.toUpperCase())}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })
