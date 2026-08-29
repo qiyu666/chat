@@ -156,6 +156,30 @@ const api = {
     transfer({ targetUsername, amount, password }) {
       return api.request('POST', '/wallet/transfer', { targetUsername, amount, password })
     }
+  },
+
+  groups: {
+    list() {
+      return api.request('GET', '/groups')
+    },
+    create({ name, memberIds }) {
+      return api.request('POST', '/groups', { name, memberIds })
+    },
+    get(groupId) {
+      return api.request('GET', `/groups/${groupId}`)
+    },
+    addMember(groupId, userId) {
+      return api.request('POST', `/groups/${groupId}/members`, { userId })
+    },
+    removeMember(groupId, userId) {
+      return api.request('DELETE', `/groups/${groupId}/members/${userId}`)
+    },
+    leave(groupId) {
+      return api.request('POST', `/groups/${groupId}/leave`)
+    },
+    sendMessage(groupId, content, imageUrl = null) {
+      return api.request('POST', `/groups/${groupId}/messages`, { content, imageUrl })
+    }
   }
 }
 

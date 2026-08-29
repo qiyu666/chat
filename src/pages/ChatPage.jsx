@@ -6,7 +6,7 @@ import { useApp } from '../AppContext'
 import { NotificationService } from '../utils/notifications'
 import { ChatWebSocket } from '../ws'
 
-export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
+export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBack }) {
   const { hasPaymentPassword } = useApp()
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -265,7 +265,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
     setSendingImage(true)
     try {
       const url = await uploadImage(file)
-      await api.messages.send(chatId, '', url)
+      await (isGroup ? api.groups.sendMessage(effectiveChatId, '', url) : api.messages.send(chatId, '', url))
       justSentRef.current = true
       const currentUser = localStorage.getItem('user')
         ? JSON.parse(localStorage.getItem('user'))
@@ -360,7 +360,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
             </div>
           </div>
         </div>
-        {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username?.[0]?.toUpperCase()}</div>}
+        {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{isGroup ? (currentUser?.username?.[0]?.toUpperCase() || '?') : (contact.username?.[0]?.toUpperCase())}</div>}
       </div>
     )
   }
@@ -456,7 +456,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
         setSendingImage(true)
         let sentUrl = ''
         uploadImage(file)
-          .then(url => { sentUrl = url; return api.messages.send(dragChatId, '', url) })
+          .then(url => { sentUrl = url; return (isGroup ? api.groups.sendMessage(effectiveChatId, '', url) : api.messages.send(dragChatId, '', url)) })
           .then(() => {
             justSentRef.current = true
             const currentUser = localStorage.getItem('user')
@@ -482,7 +482,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
           <ArrowLeft size={22} />
         </button>
         <div style={styles.contactInfo}>
-          <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
+          <div style={isGroup ? styles.groupAvatar : styles.avatar}>{isGroup ? '群' : contact.username?.[0]?.toUpperCase()}</div>
           <span style={styles.contactName}>{contact.username}</span>
           <span style={{ ...styles.wsStatus, background: wsConnected ? '#22c55e' : '#6c6c80' }} title={wsConnected ? '实时在线' : '离线'}>
             ●
@@ -490,7 +490,7 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
         </div>
         <div style={styles.headerActions}>
           <button style={styles.iconBtn} title="清除消息" onClick={async () => {
-            if (!confirm('确定要清除与 ' + contact.username + ' 的所有消息吗？')) return
+            if (!confirm('确定要清除所有消息吗？')) return
             try {
               await api.request('DELETE', `/chats/${effectiveChatId}/clear`)
               setMessages([])
@@ -539,10 +539,13 @@ export default function ChatPage({ contact, chatId: initialChatId, onBack }) {
             return (
               <div key={msg.id} style={{ display: 'flex', justifyContent: self ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
                 {!self && <div style={styles.msgAvatarLeft}>{msg.senderUsername?.[0]?.toUpperCase() || '?'}</div>}
+                {isGroup && !self && msg.senderUsername && (
+                  <div style={styles.senderName}>{msg.senderUsername}</div>
+                )}
                 <div style={{ ...styles.bubble, ...(self ? styles.bubbleSelf : styles.bubbleOther) }}>
                   {msg.content}
                 </div>
-                {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{contact.username?.[0]?.toUpperCase()}</div>}
+                {self && <div style={{ ...styles.msgAvatarRight, background: '#e94560' }}>{isGroup ? (currentUser?.username?.[0]?.toUpperCase() || '?') : (contact.username?.[0]?.toUpperCase())}</div>}
               </div>
             )
           })

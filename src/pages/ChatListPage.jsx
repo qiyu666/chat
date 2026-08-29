@@ -1,19 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, Bell, Trash2 } from 'lucide-react'
+import { Search, Bell, Trash2, Plus } from 'lucide-react'
 import ChatPage from './ChatPage'
+import GroupCreatePage from './GroupCreatePage'
 import api from '../api'
 import { NotificationService } from '../utils/notifications'
 
 export default function ChatListPage() {
   const [chats, setChats] = useState([])
+  const [groups, setGroups] = useState([])
   const [activeChat, setActiveChat] = useState(null)
+  const [activeGroup, setActiveGroup] = useState(null)
+  const [showGroupCreate, setShowGroupCreate] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showRequests, setShowRequests] = useState(false)
   const [pendingRequests, setPendingRequests] = useState([])
   const [clearingChatId, setClearingChatId] = useState(null)
+  const prevChatsRef = useRef([])
 
   useEffect(() => {
     loadChats()
+    loadGroups()
     loadPendingRequests()
   }, [])
 
@@ -21,6 +27,7 @@ export default function ChatListPage() {
     const interval = setInterval(() => {
       loadPendingRequests()
       loadChats()
+      loadGroups()
     }, 3000)
     return () => clearInterval(interval)
   }, [])
@@ -30,18 +37,15 @@ export default function ChatListPage() {
       const data = await api.contacts.list()
       const list = Array.isArray(data) ? data : (data.contacts || [])
       const prev = prevChatsRef.current
-      // 检测新消息通知
       for (const contact of list) {
         const prevContact = prev.find(p => p.id === contact.id)
         if (prevContact) {
-          const prevLast = prevContact.lastMessage || ''
           const curLast = contact.lastMessage || ''
-          if (curLast !== prevLast && contact.unread > 0) {
+          if (curLast !== (prevContact.lastMessage || '') && contact.unread > 0) {
             const preview = curLast.length > 30 ? curLast.slice(0, 30) + '...' : curLast
             NotificationService.showNotification(preview, contact.username)
           }
         } else {
-          // 新联系人，检查是否有未读
           if (contact.unread > 0 && contact.lastMessage) {
             const preview = contact.lastMessage.length > 30 ? contact.lastMessage.slice(0, 30) + '...' : contact.lastMessage
             NotificationService.showNotification(preview, contact.username)
@@ -53,6 +57,13 @@ export default function ChatListPage() {
     } catch (e) {
       console.error('[DEBUG] loadChats error:', e.message || e)
     }
+  }
+
+  const loadGroups = async () => {
+    try {
+      const data = await api.groups.list()
+      setGroups(Array.isArray(data) ? data : (data.groups || []))
+    } catch (e) {}
   }
 
   const loadPendingRequests = async () => {
@@ -72,19 +83,17 @@ export default function ChatListPage() {
     setClearingChatId(contact.chatId)
     try {
       await api.messages.clearChat(contact.chatId)
-      setChats(prev => prev.map(c =>
-        c.chatId === contact.chatId ? { ...c, lastMessage: '', unread: 0 } : c
-      ))
-    } catch (e) {
-      alert('清除失败')
-    } finally {
-      setClearingChatId(null)
-    }
+      setChats(prev => prev.map(c => c.chatId === contact.chatId ? { ...c, lastMessage: '', unread: 0 } : c))
+    } catch (e) { alert('清除失败') } finally { setClearingChatId(null) }
   }
 
   const filtered = chats.filter(c =>
     (c.username || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (c.lastMessage || '').toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const filteredGroups = groups.filter(g =>
+    (g.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const handleAccept = async (reqId) => {
@@ -104,6 +113,22 @@ export default function ChatListPage() {
     } catch (e) {}
   }
 
+  if (showGroupCreate) {
+    return <GroupCreatePage onBack={() => setShowGroupCreate(false)} onCreateGroup={(groupId) => {
+      setShowGroupCreate(false)
+      loadGroups()
+      const group = groups.find(g => g.id === groupId)
+      if (group) setActiveGroup(group)
+      else {
+        api.groups.get(groupId).then(g => setActiveGroup(g)).catch(() => {})
+      }
+    }} />
+  }
+
+  if (activeGroup) {
+    return <ChatPage contact={{ id: activeGroup.id, username: activeGroup.name, lastMessage: activeGroup.lastMessage, unread: activeGroup.unread }} chatId={activeGroup.id} isGroup onBack={() => setActiveGroup(null)} />
+  }
+
   if (activeChat) {
     return <ChatPage contact={activeChat} chatId={activeChat.chatId} onBack={() => { setActiveChat(null); onChatOpen?.(false) }} />
   }
@@ -119,6 +144,9 @@ export default function ChatListPage() {
               <span style={styles.reqBadge}>{pendingRequests.length}</span>
             </button>
           )}
+          <button onClick={() => setShowGroupCreate(true)} style={styles.newChatBtn}>
+            <Plus size={20} />
+          </button>
         </div>
       </div>
 
@@ -133,7 +161,7 @@ export default function ChatListPage() {
       </div>
 
       <div style={styles.list}>
-        {filtered.length === 0 ? (
+        {(filtered.length === 0 && filteredGroups.length === 0) ? (
           <div style={styles.empty}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
             <p style={{ color: '#6c6c80' }}>
@@ -141,36 +169,56 @@ export default function ChatListPage() {
             </p>
           </div>
         ) : (
-          filtered.map(contact => (
-            <div key={contact.id} style={styles.contactItemWrapper}>
-              <button onClick={() => { setActiveChat(contact); onChatOpen?.(true) }} style={styles.contactItem}>
-                <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
+          <>
+            {filteredGroups.length > 0 && (
+              <div style={styles.sectionTitle}>群聊 ({filteredGroups.length})</div>
+            )}
+            {filteredGroups.map(group => (
+              <div key={group.id} style={styles.groupItem} onClick={() => setActiveGroup(group)}>
+                <div style={styles.groupAvatar}>群</div>
                 <div style={styles.contactText}>
-                  <span style={styles.contactName}>{contact.username}</span>
-                  <span style={styles.lastMsg}>
-                    {contact.lastMessage || '开始对话吧'}
-                  </span>
+                  <span style={styles.contactName}>{group.name}</span>
+                  <span style={styles.lastMsg}>{group.lastMessage || '开始群聊吧'}</span>
                 </div>
                 <div style={styles.rightInfo}>
-                  {contact.unread > 0 && (
-                    <div style={styles.badge}>{contact.unread}</div>
-                  )}
+                  {group.unread > 0 && <div style={styles.badge}>{group.unread}</div>}
                 </div>
-              </button>
-              {contact.chatId && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleClearChat(contact) }}
-                  style={{
-                    ...styles.clearBtn,
-                    opacity: clearingChatId === contact.chatId ? 0.4 : 1
-                  }}
-                  disabled={clearingChatId === contact.chatId}
-                >
-                  {clearingChatId === contact.chatId ? '' : <Trash2 size={16} />}
+              </div>
+            ))}
+            {filtered.length > 0 && filteredGroups.length > 0 && (
+              <div style={styles.sectionTitle}>消息 ({filtered.length})</div>
+            )}
+            {filtered.map(contact => (
+              <div key={contact.id} style={styles.contactItemWrapper}>
+                <button onClick={() => { setActiveChat(contact); onChatOpen?.(true) }} style={styles.contactItem}>
+                  <div style={styles.avatar}>{contact.username?.[0]?.toUpperCase()}</div>
+                  <div style={styles.contactText}>
+                    <span style={styles.contactName}>{contact.username}</span>
+                    <span style={styles.lastMsg}>
+                      {contact.lastMessage || '开始对话吧'}
+                    </span>
+                  </div>
+                  <div style={styles.rightInfo}>
+                    {contact.unread > 0 && (
+                      <div style={styles.badge}>{contact.unread}</div>
+                    )}
+                  </div>
                 </button>
-              )}
-            </div>
-          ))
+                {contact.chatId && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleClearChat(contact) }}
+                    style={{
+                      ...styles.clearBtn,
+                      opacity: clearingChatId === contact.chatId ? 0.4 : 1
+                    }}
+                    disabled={clearingChatId === contact.chatId}
+                  >
+                    {clearingChatId === contact.chatId ? '' : <Trash2 size={16} />}
+                  </button>
+                )}
+              </div>
+            ))}
+          </>
         )}
       </div>
 
@@ -230,6 +278,16 @@ const styles = {
     justifyContent: 'center',
     padding: '0 4px'
   },
+  newChatBtn: {
+    padding: 8,
+    borderRadius: 8,
+    background: '#e94560',
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
   searchBar: {
     display: 'flex',
     alignItems: 'center',
@@ -248,6 +306,39 @@ const styles = {
     color: '#6c6c80'
   },
   emptySmall: { textAlign: 'center', color: '#6c6c80', padding: '30px 0' },
+  sectionTitle: {
+    padding: '8px 16px',
+    fontSize: 12,
+    color: '#6c6c80',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: 1
+  },
+  groupItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '14px 16px',
+    borderBottom: '1px solid #1a1a2e',
+    width: '100%',
+    textAlign: 'left',
+    gap: 12,
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer'
+  },
+  groupAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    background: 'linear-gradient(135deg, #667eea, #764ba2)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 700,
+    fontSize: 14,
+    flexShrink: 0,
+    color: '#fff'
+  },
   contactItem: {
     display: 'flex',
     alignItems: 'center',

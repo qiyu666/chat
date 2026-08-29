@@ -75,7 +75,7 @@ async function handleRequest(req, env) {
   if (!JWT_SECRET) throw new Error('JWT_SECRET not configured')
 
   // 一次性建表，仅在表不存在时写入（首次部署后不再消耗读取）
-  await DB.exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, chat_code TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, balance REAL DEFAULT 100, payment_password TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS blocks (blocker_id TEXT NOT NULL, blocked_id TEXT NOT NULL, PRIMARY KEY (blocker_id, blocked_id));CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, sender_id TEXT NOT NULL, content TEXT, image_url TEXT, packet_id TEXT, claimed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL, description TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, images TEXT, like_count INTEGER DEFAULT 0, comment_count INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moment_likes (moment_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY (moment_id, user_id));CREATE TABLE IF NOT EXISTS moment_comments (id TEXT PRIMARY KEY, moment_id TEXT NOT NULL, user_id TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS red_packets (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, amount REAL NOT NULL, message TEXT, status TEXT DEFAULT 'open', claimed_at TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS unread_counts (user_id TEXT NOT NULL, chat_id TEXT NOT NULL, count INTEGER DEFAULT 0, PRIMARY KEY (user_id, chat_id));`)
+  await DB.exec(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, chat_code TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, balance REAL DEFAULT 100, payment_password TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, friend_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS blocks (blocker_id TEXT NOT NULL, blocked_id TEXT NOT NULL, PRIMARY KEY (blocker_id, blocked_id));CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS messages (id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, sender_id TEXT NOT NULL, content TEXT, image_url TEXT, packet_id TEXT, claimed INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount REAL NOT NULL, type TEXT NOT NULL, description TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moments (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, content TEXT, images TEXT, like_count INTEGER DEFAULT 0, comment_count INTEGER DEFAULT 0, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS moment_likes (moment_id TEXT NOT NULL, user_id TEXT NOT NULL, PRIMARY KEY (moment_id, user_id));CREATE TABLE IF NOT EXISTS moment_comments (id TEXT PRIMARY KEY, moment_id TEXT NOT NULL, user_id TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS red_packets (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, amount REAL NOT NULL, message TEXT, status TEXT DEFAULT 'open', claimed_at TEXT, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS friend_requests (id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS unread_counts (user_id TEXT NOT NULL, chat_id TEXT NOT NULL, count INTEGER DEFAULT 0, PRIMARY KEY (user_id, chat_id));CREATE TABLE IF NOT EXISTS groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, creator_id TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now')));CREATE TABLE IF NOT EXISTS group_members (group_id TEXT NOT NULL, user_id TEXT NOT NULL, is_admin INTEGER DEFAULT 0, joined_at TEXT DEFAULT (datetime('now')), PRIMARY KEY (group_id, user_id));`)
   // 迁移：为已有消息表添加 claimed 列（忽略已存在时报错）
   await DB.exec("ALTER TABLE messages ADD COLUMN claimed INTEGER DEFAULT 0").catch(() => {}).then(() => {
     return DB.prepare("UPDATE messages SET claimed = 1 WHERE packet_id IS NOT NULL AND packet_id IN (SELECT id FROM red_packets WHERE status = 'claimed')").run()
@@ -735,6 +735,131 @@ async function handleRequest(req, env) {
       return respond({ success: true })
     }
 
+    // ── 群聊 ─────────────────────────────────────────
+    // 获取我的群聊列表（含群内未读消息数）
+    if (path === '/api/groups' && method === 'GET') {
+      const err = requireAuth()
+      if (err) return err
+      const rows = await DB.prepare(`
+        SELECT g.id, g.name, g.creator_id, gm.is_admin,
+               (SELECT m.content FROM messages m WHERE m.chat_id = g.id ORDER BY m.created_at DESC LIMIT 1) as last_msg,
+               COALESCE(uc.count, 0) as unread
+        FROM group_members gm
+        JOIN groups g ON g.id = gm.group_id
+        LEFT JOIN unread_counts uc ON uc.user_id = ? AND uc.chat_id = g.id
+        WHERE gm.user_id = ?
+        ORDER BY g.created_at DESC
+      `).bind(userId, userId).all()
+      return respond((rows.results || []).map(r => ({
+        id: r.id, name: r.name, is_admin: !!r.is_admin,
+        lastMessage: r.last_msg || '', unread: r.unread || 0
+      })))
+    }
+
+    // 创建群聊
+    if (path === '/api/groups' && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const body = await req.json()
+      const { name, memberIds } = body
+      if (!name) return respondError('群名称不能为空')
+      if (!memberIds || !Array.isArray(memberIds) || memberIds.length < 1) return respondError('至少添加1位成员')
+      const id = generateId()
+      await DB.prepare('INSERT INTO groups (id, name, creator_id) VALUES (?, ?, ?)').bind(id, name, userId).run()
+      await DB.prepare('INSERT INTO group_members (group_id, user_id, is_admin) VALUES (?, ?, 1)').bind(id, userId).run()
+      for (const mid of memberIds) {
+        if (mid !== userId) {
+          await DB.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').bind(id, mid).run()
+        }
+      }
+      return respond({ success: true, groupId: id })
+    }
+
+    // 获取群详情（含成员列表）
+    if (path.startsWith('/api/groups/') && !path.includes('/members') && method === 'GET') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      const group = await DB.prepare('SELECT * FROM groups WHERE id = ?').bind(groupId).first()
+      if (!group) return respondError('群不存在', 404)
+      const memberRows = await DB.prepare(`
+        SELECT gm.user_id, gm.is_admin, u.username
+        FROM group_members gm
+        JOIN users u ON u.id = gm.user_id
+        WHERE gm.group_id = ?
+      `).bind(groupId).all()
+      return respond({ id: group.id, name: group.name, creator_id: group.creator_id,
+        members: (memberRows.results || []).map(m => ({
+          id: m.user_id, username: m.username, is_admin: !!m.is_admin
+        }))
+      })
+    }
+
+    // 添加群成员
+    if (path.startsWith('/api/groups/') && path.endsWith('/members') && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      const body = await req.json()
+      const { userId: memberId } = body
+      if (!memberId) return respondError('缺少成员ID')
+      const group = await DB.prepare('SELECT id FROM groups WHERE id = ?').bind(groupId).first()
+      if (!group) return respondError('群不存在', 404)
+      const existing = await DB.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, memberId).first()
+      if (existing) return respondError('该用户已在群中')
+      await DB.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').bind(groupId, memberId).run()
+      return respond({ success: true })
+    }
+
+    // 移除群成员
+    if (path.startsWith('/api/groups/') && path.endsWith('/members') && method === 'DELETE') {
+      const err = requireAuth()
+      if (err) return err
+      const parts = path.split('/')
+      const groupId = parts[3]
+      const memberId = parts[5]
+      if (!memberId) return respondError('缺少成员ID', 400)
+      const group = await DB.prepare('SELECT id FROM groups WHERE id = ?').bind(groupId).first()
+      if (!group) return respondError('群不存在', 404)
+      const isAdmin = await DB.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_admin = 1').bind(groupId, userId).first()
+      const isSelf = memberId === userId
+      if (!isAdmin && !isSelf) return respondError('无权限', 403)
+      await DB.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, memberId).run()
+      return respond({ success: true })
+    }
+
+    // 退出群聊
+    if (path.startsWith('/api/groups/') && path.endsWith('/leave') && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      const group = await DB.prepare('SELECT id FROM groups WHERE id = ?').bind(groupId).first()
+      if (!group) return respondError('群不存在', 404)
+      await DB.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, userId).run()
+      return respond({ success: true })
+    }
+
+    // 群消息发送（复用 messages 表，chat_id 使用 group id）
+    if (path.startsWith('/api/groups/') && path.endsWith('/messages') && method === 'POST') {
+      const err = requireAuth()
+      if (err) return err
+      const groupId = path.split('/')[3]
+      const body = await req.json()
+      const { content, imageUrl } = body
+      if (!content && !imageUrl) return respondError('消息内容不能为空')
+      const group = await DB.prepare('SELECT id FROM groups WHERE id = ?').bind(groupId).first()
+      if (!group) return respondError('群不存在', 404)
+      const member = await DB.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, userId).first()
+      if (!member) return respondError('你不在该群中', 403)
+      const id = generateId()
+      await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content, image_url) VALUES (?, ?, ?, ?, ?)').bind(id, groupId, userId, content || null, imageUrl || null).run()
+      const allMembers = await DB.prepare('SELECT user_id FROM group_members WHERE group_id = ? AND user_id != ?').bind(groupId, userId).all()
+      for (const m of (allMembers.results || [])) {
+        await DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(m.user_id, groupId).run()
+      }
+      return respond({ success: true, messageId: id })
+    }
+
     return respondError('Not Found', 404)
   }
 
@@ -760,8 +885,21 @@ async function handleWebSocketUpgrade(req, env) {
   const payload = await verifyJWT(token, env.JWT_SECRET)
   if (!payload || !payload.userId) return null
 
-  const chat = await env.DB.prepare('SELECT id FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').bind(chatId, payload.userId, payload.userId).first()
-  if (!chat) return null
+  // 优先检查群聊（chatId 可能是 group id）
+  const group = await env.DB.prepare('SELECT id FROM groups WHERE id = ?').bind(chatId).first()
+  let chat = null
+  let otherUserIds = []
+  if (!group) {
+    // 1-on-1 聊天
+    chat = await env.DB.prepare('SELECT id FROM chats WHERE id = ? AND (user1_id = ? OR user2_id = ?)').bind(chatId, payload.userId, payload.userId).first()
+    if (!chat) return null
+  } else {
+    // 群聊：检查是否是成员
+    const member = await env.DB.prepare('SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?').bind(chatId, payload.userId).first()
+    if (!member) return null
+    const allMembers = await env.DB.prepare('SELECT user_id FROM group_members WHERE group_id = ?').bind(chatId).all()
+    otherUserIds = (allMembers.results || []).map(r => r.user_id).filter(uid => uid !== payload.userId)
+  }
 
   const { 0: ws, 1: accept } = new WebSocketPair()
   accept()
@@ -776,27 +914,41 @@ async function handleWebSocketUpgrade(req, env) {
       const data = JSON.parse(evt.data)
       if (data.type !== 'chat_message' || !data.content) return
       const msgId = generateId()
-      const chatRecord = await env.DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
-      if (!chatRecord) return
-      const otherUserId = chatRecord.user1_id === payload.userId ? chatRecord.user2_id : chatRecord.user1_id
-      await env.DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content) VALUES (?, ?, ?, ?)').bind(msgId, chatId, payload.userId, data.content).run()
-      await env.DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
-      const msg = await env.DB.prepare('SELECT m.*, u.username as sender_name FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.id = ?').bind(msgId).first()
-      const broadcast = {
-        type: 'new_message',
-        chat_id: chatId,
-        id: msg.id,
-        sender_id: String(msg.sender_id),
-        sender_name: msg.sender_name,
-        content: msg.content,
-        image_url: msg.image_url || null,
-        created_at: msg.created_at,
-        is_mine: false,
-        safe_sender_id: String(msg.sender_id),
-        redPacketId: msg.packet_id || null
-      }
-      for (const client of room) {
-        if (client !== ws && client.readyState === 1) wsRespond(client, broadcast)
+      if (!group) {
+        // 1-on-1 聊天
+        const chatRecord = await env.DB.prepare('SELECT user1_id, user2_id FROM chats WHERE id = ?').bind(chatId).first()
+        if (!chatRecord) return
+        const otherUserId = chatRecord.user1_id === payload.userId ? chatRecord.user2_id : chatRecord.user1_id
+        await env.DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content) VALUES (?, ?, ?, ?)').bind(msgId, chatId, payload.userId, data.content).run()
+        await env.DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherUserId, chatId).run()
+        const msg = await env.DB.prepare('SELECT m.*, u.username as sender_name FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.id = ?').bind(msgId).first()
+        const broadcast = {
+          type: 'new_message', chat_id: chatId, id: msg.id,
+          sender_id: String(msg.sender_id), sender_name: msg.sender_name,
+          content: msg.content, image_url: msg.image_url || null,
+          created_at: msg.created_at, is_mine: false,
+          safe_sender_id: String(msg.sender_id), redPacketId: msg.packet_id || null
+        }
+        for (const client of room) {
+          if (client !== ws && client.readyState === 1) wsRespond(client, broadcast)
+        }
+      } else {
+        // 群聊：广播给所有其他成员
+        await env.DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content) VALUES (?, ?, ?, ?)').bind(msgId, chatId, payload.userId, data.content).run()
+        for (const otherId of otherUserIds) {
+          await env.DB.prepare("INSERT INTO unread_counts (user_id, chat_id, count) VALUES (?, ?, 1) ON CONFLICT(user_id, chat_id) DO UPDATE SET count = count + 1").bind(otherId, chatId).run()
+        }
+        const msg = await env.DB.prepare('SELECT m.*, u.username as sender_name FROM messages m JOIN users u ON m.sender_id = u.id WHERE m.id = ?').bind(msgId).first()
+        const broadcast = {
+          type: 'new_message', chat_id: chatId, id: msg.id,
+          sender_id: String(msg.sender_id), sender_name: msg.sender_name,
+          content: msg.content, image_url: msg.image_url || null,
+          created_at: msg.created_at, is_mine: false,
+          safe_sender_id: String(msg.sender_id), redPacketId: msg.packet_id || null
+        }
+        for (const client of room) {
+          if (client !== ws && client.readyState === 1) wsRespond(client, broadcast)
+        }
       }
     } catch (e) {
       console.error('WS message error:', e)
