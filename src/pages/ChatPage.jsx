@@ -230,7 +230,6 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
     } catch (e) {
       console.error('send error:', e)
       setInput(content)
-      alert('发送失败：' + (e.message || '未知错误'))
     }
   }
 

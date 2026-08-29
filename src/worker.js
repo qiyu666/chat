@@ -828,7 +828,7 @@ async function handleRequest(req, env) {
       if (!memberId) return respondError('缺少成员ID', 400)
       const group = await DB.prepare('SELECT id FROM groups WHERE id = ?').bind(groupId).first()
       if (!group) return respondError('群不存在', 404)
-      const isAdmin = await DB.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ? AND is_admin = 1').bind(groupId, userId).first()
+      const isAdmin = await DB.prepare('SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ? AND is_admin = 1').bind(groupId, userId).first()
       const isSelf = memberId === userId
       if (!isAdmin && !isSelf) return respondError('无权限', 403)
       await DB.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, memberId).run()
@@ -856,7 +856,7 @@ async function handleRequest(req, env) {
       if (!content && !imageUrl) return respondError('消息内容不能为空')
       const group = await DB.prepare('SELECT id FROM groups WHERE id = ?').bind(groupId).first()
       if (!group) return respondError('群不存在', 404)
-      const member = await DB.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, userId).first()
+      const member = await DB.prepare('SELECT user_id FROM group_members WHERE group_id = ? AND user_id = ?').bind(groupId, userId).first()
       if (!member) return respondError('你不在该群中', 403)
       const id = generateId()
       await DB.prepare('INSERT INTO messages (id, chat_id, sender_id, content, image_url) VALUES (?, ?, ?, ?, ?)').bind(id, groupId, userId, content || null, imageUrl || null).run()
