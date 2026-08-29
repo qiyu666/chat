@@ -53,7 +53,7 @@ export default function ChatPage({ contact, chatId: initialChatId, isGroup, onBa
     setLoading(true)
     try {
       const data = await api.messages.get(effectiveChatId)
-      const newMsgs = data.messages || []
+      const newMsgs = (data.messages || []).map(m => ({ ...m, senderUsername: m.sender_name || m.senderUsername }))
       const prevCount = lastMsgCountRef.current
       lastMsgCountRef.current = newMsgs.length
       if (newMsgs.length > prevCount) {
