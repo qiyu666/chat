@@ -21,7 +21,13 @@ function MainApp() {
   const [authView, setAuthView] = useState('login')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
-  const prevUserRef = useRef(null)
+  const [hasAnimated, setHasAnimated] = useState(() => {
+    try {
+      return !!localStorage.getItem('user')
+    } catch {
+      return false
+    }
+  })
 
   // 监听窗口大小变化
   useEffect(() => {
@@ -30,12 +36,13 @@ function MainApp() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 检测用户登录状态变化
+  // 登录成功后触发动画
+  const userChangedRef = useRef(false)
   useEffect(() => {
-    if (user && !prevUserRef.current) {
-      prevUserRef.current = user
+    if (user && !userChangedRef.current) {
+      userChangedRef.current = true
+      setHasAnimated(true)
     }
-    prevUserRef.current = user || null
   }, [user])
 
   if (isAdmin) {
@@ -64,7 +71,7 @@ function MainApp() {
 
   return (
     <AnimatePresence mode="wait">
-      {!prevUserRef.current ? (
+      {!hasAnimated ? (
         <motion.div
           key="login-page"
           initial={{ opacity: 0 }}
