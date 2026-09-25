@@ -1,25 +1,29 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 
 const AppContext = createContext()
 
+// 从 localStorage 同步获取用户信息
+function getStoredUser() {
+  try {
+    const stored = localStorage.getItem('user')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+}
+
 export function AppProvider({ children }) {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(getStoredUser)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)
-  const [hasPaymentPassword, setHasPaymentPassword] = useState(false)
-
-  useEffect(() => {
-    const stored = localStorage.getItem('user')
-    if (stored) {
-      try {
-        const u = JSON.parse(stored)
-        setUser(u)
-        setHasPaymentPassword(!!u.hasPaymentPassword)
-      } catch (e) {
-        localStorage.removeItem('user')
-      }
+  const [hasPaymentPassword, setHasPaymentPassword] = useState(() => {
+    try {
+      const stored = localStorage.getItem('user')
+      return stored ? !!JSON.parse(stored).hasPaymentPassword : false
+    } catch {
+      return false
     }
-  }, [])
+  })
 
   const showToast = useCallback((message, type = 'info') => {
     setToast({ message, type })
