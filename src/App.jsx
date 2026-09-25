@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import ChatListPage from './pages/ChatListPage'
 import ContactsPage from './pages/ContactsPage'
@@ -21,14 +21,24 @@ function MainApp() {
   const [authView, setAuthView] = useState('login')
   const [chatActive, setChatActive] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
-  const [hasLoggedIn, setHasLoggedIn] = useState(false)
+  const [showMain, setShowMain] = useState(false)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
+  const prevUserRef = useRef(null)
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 481)
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [])
+
+  // 检测用户登录状态变化
+  useEffect(() => {
+    if (user && !prevUserRef.current) {
+      // 刚刚登录成功
+      setShowMain(true)
+    }
+    prevUserRef.current = user || null
+  }, [user])
 
   if (isAdmin) {
     return localStorage.getItem('adminToken') ? (
@@ -46,13 +56,6 @@ function MainApp() {
     )
   }
 
-  // 检测是否刚刚登录成功（用于触发进入动画）
-  useEffect(() => {
-    if (!hasLoggedIn) {
-      setHasLoggedIn(true)
-    }
-  }, [hasLoggedIn])
-
   const tabItems = [
     { id: 'chats', label: '消息', icon: ChatIcon },
     { id: 'contacts', label: '联系人', icon: ContactsIcon },
@@ -62,7 +65,7 @@ function MainApp() {
 
   return (
     <AnimatePresence mode="wait">
-      {!hasLoggedIn ? (
+      {!showMain ? (
         <motion.div
           key="login-page"
           initial={{ opacity: 0 }}
@@ -75,14 +78,14 @@ function MainApp() {
       ) : (
         <motion.div
           key="main-app"
-          initial={{ scaleY: 0, originY: 0.5 }}
-          animate={{ scaleY: 1, originY: 0.5 }}
-          exit={{ scaleY: 0, originY: 0.5 }}
+          initial={{ scaleY: 0, opacity: 0 }}
+          animate={{ scaleY: 1, opacity: 1 }}
+          exit={{ scaleY: 0, opacity: 0 }}
           transition={{
             type: 'spring',
-            stiffness: 100,
+            stiffness: 120,
             damping: 20,
-            duration: 0.6
+            duration: 0.5
           }}
           style={{
             display: 'flex',
