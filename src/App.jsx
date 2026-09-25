@@ -20,9 +20,17 @@ function MainApp() {
   const [profileView, setProfileView] = useState('default')
   const [authView, setAuthView] = useState('login')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
-  const [showMain, setShowMain] = useState(false)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
-  const prevUserRef = useRef(null)
+  
+  // 初始化 showMain：如果有已登录用户则直接显示主界面
+  const [showMain, setShowMain] = useState(() => {
+    try {
+      return !!localStorage.getItem('user')
+    } catch {
+      return false
+    }
+  })
+  const hasAnimatedRef = useRef(false)
 
   // 监听窗口大小变化
   useEffect(() => {
@@ -31,12 +39,12 @@ function MainApp() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 检测用户登录状态变化
+  // 检测用户登录状态变化（用于触发动画）
   useEffect(() => {
-    if (user && !prevUserRef.current) {
+    if (user && !hasAnimatedRef.current) {
+      hasAnimatedRef.current = true
       setShowMain(true)
     }
-    prevUserRef.current = user || null
   }, [user])
 
   if (isAdmin) {
@@ -101,7 +109,6 @@ function MainApp() {
           <motion.div
             style={{
               ...styles.dock,
-              // 桌面端始终显示，移动端根据内容调整
               display: 'flex'
             }}
             initial={{ y: 100 }}
@@ -195,13 +202,13 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
-    height: '100dvh', // 动态视口高度，适配移动端
+    height: '100dvh',
     background: '#0f0f1a'
   },
   content: {
     flex: 1,
     overflow: 'auto',
-    minHeight: 0 // 防止子元素溢出
+    minHeight: 0
   },
   dock: {
     display: 'flex',
@@ -209,8 +216,6 @@ const styles = {
     borderTop: '1px solid #2a2a4a',
     padding: '8px 0 calc(8px + env(safe-area-inset-bottom))',
     justifyContent: 'space-around',
-    // 桌面端限制宽度并居中
-    maxWidth: '100%',
     position: 'sticky',
     bottom: 0,
     zIndex: 100
