@@ -20,17 +20,17 @@ function MainApp() {
   const [profileView, setProfileView] = useState('default')
   const [authView, setAuthView] = useState('login')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
+  const [isLoading, setIsLoading] = useState(true)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
   
-  // 初始化 showMain：如果有已登录用户则直接显示主界面
-  const [showMain, setShowMain] = useState(() => {
+  // 检测用户是否已登录
+  const isLoggedIn = () => {
     try {
       return !!localStorage.getItem('user')
     } catch {
       return false
     }
-  })
-  const hasAnimatedRef = useRef(false)
+  }
 
   // 监听窗口大小变化
   useEffect(() => {
@@ -39,13 +39,21 @@ function MainApp() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 检测用户登录状态变化（用于触发动画）
+  // 检测用户登录状态变化
+  const prevUserRef = useRef(null)
   useEffect(() => {
-    if (user && !hasAnimatedRef.current) {
-      hasAnimatedRef.current = true
-      setShowMain(true)
+    if (user && !prevUserRef.current) {
+      // 刚刚登录成功
+      prevUserRef.current = user
     }
+    prevUserRef.current = user || null
+    setIsLoading(false)
   }, [user])
+
+  // 初始化：检查 localStorage
+  useEffect(() => {
+    setIsLoading(false)
+  }, [])
 
   if (isAdmin) {
     return localStorage.getItem('adminToken') ? (
@@ -55,6 +63,12 @@ function MainApp() {
     )
   }
 
+  // 加载中显示空白
+  if (isLoading) {
+    return <div style={styles.loading} />
+  }
+
+  // 未登录显示登录页
   if (!user) {
     return authView === 'login' ? (
       <LoginPage onSwitch={() => setAuthView('register')} />
@@ -72,7 +86,7 @@ function MainApp() {
 
   return (
     <AnimatePresence mode="wait">
-      {!showMain ? (
+      {!prevUserRef.current ? (
         <motion.div
           key="login-page"
           initial={{ opacity: 0 }}
@@ -194,6 +208,10 @@ export default function App() {
 }
 
 const styles = {
+  loading: {
+    minHeight: '100vh',
+    background: '#0f0f1a'
+  },
   page: {
     minHeight: '100vh',
     background: '#0f0f1a'
