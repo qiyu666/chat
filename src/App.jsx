@@ -19,22 +19,21 @@ function MainApp() {
   const [activeTab, setActiveTab] = useState('chats')
   const [profileView, setProfileView] = useState('default')
   const [authView, setAuthView] = useState('login')
-  const [chatActive, setChatActive] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const [showMain, setShowMain] = useState(false)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
   const prevUserRef = useRef(null)
 
+  // 监听窗口大小变化
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 481)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    const handleResize = () => setIsMobile(window.innerWidth < 481)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   // 检测用户登录状态变化
   useEffect(() => {
     if (user && !prevUserRef.current) {
-      // 刚刚登录成功
       setShowMain(true)
     }
     prevUserRef.current = user || null
@@ -71,7 +70,7 @@ function MainApp() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          style={{ minHeight: '100vh', background: '#0f0f1a' }}
+          style={styles.page}
         >
           <LoginPage onSwitch={() => setAuthView('register')} />
         </motion.div>
@@ -87,22 +86,28 @@ function MainApp() {
             damping: 20,
             duration: 0.5
           }}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            height: '100vh',
-            background: '#0f0f1a'
-          }}
+          style={styles.container}
         >
+          {/* 主内容区 */}
           <div style={styles.content}>
-            {activeTab === 'chats' && <ChatListPage onChatOpen={setChatActive} />}
+            {activeTab === 'chats' && <ChatListPage />}
             {activeTab === 'contacts' && <ContactsPage />}
             {activeTab === 'moments' && <MomentsPage />}
-            {activeTab === 'profile' && profileView === 'default' && <ProfilePage onNavigate={setProfileView} />}
+            {activeTab === 'profile' && profileView === 'default' && <ProfilePage />}
             {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
           </div>
 
-          <div style={{ ...styles.tabBar, display: (isMobile && chatActive) ? 'none' : 'flex' }}>
+          {/* 底部 Dock 导航栏 */}
+          <motion.div
+            style={{
+              ...styles.dock,
+              // 桌面端始终显示，移动端根据内容调整
+              display: 'flex'
+            }}
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 15 }}
+          >
             {tabItems.map(tab => {
               const IconComp = tab.icon
               return (
@@ -110,22 +115,23 @@ function MainApp() {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   style={{
-                    ...styles.tabItem,
-                    ...(activeTab === tab.id ? styles.tabItemActive : {})
+                    ...styles.dockItem,
+                    ...(activeTab === tab.id ? styles.dockItemActive : {})
                   }}
                 >
                   <IconComp size={24} color={activeTab === tab.id ? '#e94560' : '#6c6c80'} />
                   <span style={{
                     fontSize: 11,
                     color: activeTab === tab.id ? '#e94560' : '#6c6c80',
-                    fontWeight: activeTab === tab.id ? 600 : 400
+                    fontWeight: activeTab === tab.id ? 600 : 400,
+                    marginTop: 4
                   }}>
                     {tab.label}
                   </span>
                 </button>
               )
             })}
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -181,27 +187,45 @@ export default function App() {
 }
 
 const styles = {
+  page: {
+    minHeight: '100vh',
+    background: '#0f0f1a'
+  },
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    height: '100dvh', // 动态视口高度，适配移动端
+    background: '#0f0f1a'
+  },
   content: {
     flex: 1,
-    overflow: 'auto'
+    overflow: 'auto',
+    minHeight: 0 // 防止子元素溢出
   },
-  tabBar: {
+  dock: {
     display: 'flex',
     background: '#1a1a2e',
     borderTop: '1px solid #2a2a4a',
-    paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+    padding: '8px 0 calc(8px + env(safe-area-inset-bottom))',
+    justifyContent: 'space-around',
+    // 桌面端限制宽度并居中
+    maxWidth: '100%',
+    position: 'sticky',
+    bottom: 0,
+    zIndex: 100
   },
-  tabItem: {
+  dockItem: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '10px 0 8px',
-    gap: 4,
     border: 'none',
     background: 'transparent',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    padding: '4px 0',
+    gap: 4
   },
-  tabItemActive: {}
+  dockItemActive: {}
 }
