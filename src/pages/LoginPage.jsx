@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../AppContext'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader } from 'lucide-react'
 
 export default function LoginPage({ onSwitch }) {
   const { login } = useApp()
@@ -8,6 +9,7 @@ export default function LoginPage({ onSwitch }) {
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -16,7 +18,9 @@ export default function LoginPage({ onSwitch }) {
       setError('请输入用户名和密码')
       return
     }
+    setLoading(true)
     const result = await login(username.trim(), password)
+    setLoading(false)
     if (!result.success) {
       setError(result.error || '登录失败')
     }
@@ -24,13 +28,31 @@ export default function LoginPage({ onSwitch }) {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.logo}>💬</div>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        style={styles.header}
+      >
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.1 }}
+          style={styles.logo}
+        >
+          💬
+        </motion.div>
         <h1 style={styles.title}>社交聊天</h1>
         <p style={styles.subtitle}>连接你我，畅聊无限</p>
-      </div>
+      </motion.div>
 
-      <form onSubmit={handleSubmit} style={styles.form}>
+      <motion.form
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+        onSubmit={handleSubmit}
+        style={styles.form}
+      >
         <div style={styles.inputGroup}>
           <span style={styles.inputIcon}>👤</span>
           <input
@@ -62,14 +84,40 @@ export default function LoginPage({ onSwitch }) {
           </button>
         </div>
 
-        {error && <p style={styles.error}>{error}</p>}
+        <AnimatePresence>
+          {error && (
+            <motion.p
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              style={styles.error}
+            >
+              {error}
+            </motion.p>
+          )}
+        </AnimatePresence>
 
-        <button type="submit" style={styles.btnPrimary}>登录</button>
+        <motion.button
+          type="submit"
+          style={styles.btnPrimary}
+          disabled={loading}
+          whileTap={{ scale: 0.98 }}
+          whileHover={{ opacity: loading ? 0.8 : 1 }}
+        >
+          {loading ? (
+            <span style={styles.btnContent}>
+              <Loader size={18} className="spin" />
+              <span>登录中...</span>
+            </span>
+          ) : (
+            '登录'
+          )}
+        </motion.button>
 
         <p style={styles.switch}>
           还没有账号？<button type="button" onClick={onSwitch} style={styles.link}>立即注册</button>
         </p>
-      </form>
+      </motion.form>
     </div>
   )
 }
@@ -90,7 +138,8 @@ const styles = {
   },
   logo: {
     fontSize: 56,
-    marginBottom: 16
+    marginBottom: 16,
+    display: 'inline-block'
   },
   title: {
     fontSize: 28,
@@ -147,7 +196,19 @@ const styles = {
     fontSize: 16,
     fontWeight: 600,
     color: '#fff',
-    marginTop: 8
+    marginTop: 8,
+    border: 'none',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8
+  },
+  btnContent: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8
   },
   switch: {
     textAlign: 'center',
@@ -157,6 +218,10 @@ const styles = {
   },
   link: {
     color: '#e94560',
-    fontWeight: 600
+    fontWeight: 600,
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 14
   }
 }

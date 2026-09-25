@@ -69,3 +69,13 @@ input, textarea {
 .wx-packet-card:hover {
   transform: scale(1.03);
 }
+
+/* 旋转动画 */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}

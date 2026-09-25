@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import ChatListPage from './pages/ChatListPage'
 import ContactsPage from './pages/ContactsPage'
 import MomentsPage from './pages/MomentsPage'
@@ -20,6 +21,7 @@ function MainApp() {
   const [authView, setAuthView] = useState('login')
   const [chatActive, setChatActive] = useState(false)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
+  const [hasLoggedIn, setHasLoggedIn] = useState(false)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
 
   useEffect(() => {
@@ -44,6 +46,13 @@ function MainApp() {
     )
   }
 
+  // 检测是否刚刚登录成功（用于触发进入动画）
+  useEffect(() => {
+    if (!hasLoggedIn) {
+      setHasLoggedIn(true)
+    }
+  }, [hasLoggedIn])
+
   const tabItems = [
     { id: 'chats', label: '消息', icon: ChatIcon },
     { id: 'contacts', label: '联系人', icon: ContactsIcon },
@@ -52,40 +61,71 @@ function MainApp() {
   ]
 
   return (
-    <div style={styles.container}>
-      <div style={styles.content}>
-        {activeTab === 'chats' && <ChatListPage onChatOpen={setChatActive} />}
-        {activeTab === 'contacts' && <ContactsPage />}
-        {activeTab === 'moments' && <MomentsPage />}
-        {activeTab === 'profile' && profileView === 'default' && <ProfilePage onNavigate={setProfileView} />}
-        {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
-      </div>
+    <AnimatePresence mode="wait">
+      {!hasLoggedIn ? (
+        <motion.div
+          key="login-page"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          style={{ minHeight: '100vh', background: '#0f0f1a' }}
+        >
+          <LoginPage onSwitch={() => setAuthView('register')} />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="main-app"
+          initial={{ scaleY: 0, originY: 0.5 }}
+          animate={{ scaleY: 1, originY: 0.5 }}
+          exit={{ scaleY: 0, originY: 0.5 }}
+          transition={{
+            type: 'spring',
+            stiffness: 100,
+            damping: 20,
+            duration: 0.6
+          }}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            background: '#0f0f1a'
+          }}
+        >
+          <div style={styles.content}>
+            {activeTab === 'chats' && <ChatListPage onChatOpen={setChatActive} />}
+            {activeTab === 'contacts' && <ContactsPage />}
+            {activeTab === 'moments' && <MomentsPage />}
+            {activeTab === 'profile' && profileView === 'default' && <ProfilePage onNavigate={setProfileView} />}
+            {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
+          </div>
 
-      <div style={{ ...styles.tabBar, display: (isMobile && chatActive) ? 'none' : 'flex' }}>
-        {tabItems.map(tab => {
-          const IconComp = tab.icon
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                ...styles.tabItem,
-                ...(activeTab === tab.id ? styles.tabItemActive : {})
-              }}
-            >
-              <IconComp size={24} color={activeTab === tab.id ? '#e94560' : '#6c6c80'} />
-              <span style={{
-                fontSize: 11,
-                color: activeTab === tab.id ? '#e94560' : '#6c6c80',
-                fontWeight: activeTab === tab.id ? 600 : 400
-              }}>
-                {tab.label}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </div>
+          <div style={{ ...styles.tabBar, display: (isMobile && chatActive) ? 'none' : 'flex' }}>
+            {tabItems.map(tab => {
+              const IconComp = tab.icon
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    ...styles.tabItem,
+                    ...(activeTab === tab.id ? styles.tabItemActive : {})
+                  }}
+                >
+                  <IconComp size={24} color={activeTab === tab.id ? '#e94560' : '#6c6c80'} />
+                  <span style={{
+                    fontSize: 11,
+                    color: activeTab === tab.id ? '#e94560' : '#6c6c80',
+                    fontWeight: activeTab === tab.id ? 600 : 400
+                  }}>
+                    {tab.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 
@@ -138,12 +178,6 @@ export default function App() {
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    background: '#0f0f1a'
-  },
   content: {
     flex: 1,
     overflow: 'auto'
@@ -161,7 +195,10 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '10px 0 8px',
-    gap: 4
+    gap: 4,
+    border: 'none',
+    background: 'transparent',
+    cursor: 'pointer'
   },
   tabItemActive: {}
 }
