@@ -79,3 +79,15 @@ input, textarea {
 .spin {
   animation: spin 1s linear infinite;
 }
+
+/* 列表淡入 */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 骨架屏微光 */
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}

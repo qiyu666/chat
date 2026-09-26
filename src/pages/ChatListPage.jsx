@@ -15,6 +15,7 @@ export default function ChatListPage() {
   const [showRequests, setShowRequests] = useState(false)
   const [pendingRequests, setPendingRequests] = useState([])
   const [clearingChatId, setClearingChatId] = useState(null)
+  const [loading, setLoading] = useState(true) // 首次加载中
   const prevChatsRef = useRef([])
 
   useEffect(() => {
@@ -54,6 +55,8 @@ export default function ChatListPage() {
       setChats(list)
     } catch (e) {
       console.error('[DEBUG] loadChats error:', e.message || e)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -166,7 +169,9 @@ export default function ChatListPage() {
       </div>
 
       <div style={styles.list}>
-        {(filtered.length === 0 && filteredGroups.length === 0) ? (
+        {loading ? (
+          <SkeletonList />
+        ) : (filtered.length === 0 && filteredGroups.length === 0) ? (
           <div style={styles.empty}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>💬</div>
             <p style={{ color: '#6c6c80' }}>
@@ -174,7 +179,7 @@ export default function ChatListPage() {
             </p>
           </div>
         ) : (
-          <>
+          <div style={styles.fadeInList}>
             {filteredGroups.length > 0 && (
               <div style={styles.sectionTitle}>群聊 ({filteredGroups.length})</div>
             )}
@@ -223,7 +228,7 @@ export default function ChatListPage() {
                 )}
               </div>
             ))}
-          </>
+          </div>
         )}
       </div>
 
@@ -251,6 +256,23 @@ export default function ChatListPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// 骨架屏：首次加载时显示，避免列表突然出现
+function SkeletonList() {
+  return (
+    <div>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} style={styles.skeletonRow}>
+          <div style={styles.skeletonCircle} />
+          <div style={styles.skeletonLines}>
+            <div style={styles.skeletonLine} />
+            <div style={{ ...styles.skeletonLine, width: '70%', opacity: 0.5 }} />
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -311,6 +333,39 @@ const styles = {
     color: '#6c6c80'
   },
   emptySmall: { textAlign: 'center', color: '#6c6c80', padding: '30px 0' },
+  fadeInList: {
+    animation: 'fadeInUp 0.35s ease both'
+  },
+  skeletonRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '14px 16px',
+    borderBottom: '1px solid #1a1a2e'
+  },
+  skeletonCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: '50%',
+    background: 'linear-gradient(90deg, #1a1a2e 25%, #2a2a4a 50%, #1a1a2e 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'shimmer 1.4s infinite',
+    flexShrink: 0
+  },
+  skeletonLines: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8
+  },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    width: '50%',
+    background: 'linear-gradient(90deg, #1a1a2e 25%, #2a2a4a 50%, #1a1a2e 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'shimmer 1.4s infinite'
+  },
   sectionTitle: {
     padding: '8px 16px',
     fontSize: 12,
