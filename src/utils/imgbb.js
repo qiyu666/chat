@@ -55,6 +55,8 @@ export async function uploadToImgbb(file, maxWidth = 600) {
 /**
  * 降级：上传到 Cloudflare Worker（D1 存储）
  */
+const API_BASE = 'https://chat-api.aiit.cc.cd/api'
+
 async function uploadToWorker(blob, token) {
   const arrayBuffer = await blob.arrayBuffer()
   // 分块 btoa，避免大图片时 String.fromCharCode 展开爆栈
@@ -71,7 +73,7 @@ async function uploadToWorker(blob, token) {
   try {
     const headers = { 'Content-Type': 'application/json' }
     if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch('/api/images', {
+    const res = await fetch(`${API_BASE}/images`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ data: b64, contentType: blob.type }),
@@ -84,7 +86,7 @@ async function uploadToWorker(blob, token) {
     }
     const json = await res.json()
     // Worker 返回相对路径 /api/images/:id，补全为完整 URL
-    return json.url.startsWith('http') ? json.url : `https://chat-api.aiit.cc.cd/api${json.url}`
+    return json.url.startsWith('http') ? json.url : `${API_BASE}${json.url}`
   } catch (err) {
     clearTimeout(timeout)
     throw err
