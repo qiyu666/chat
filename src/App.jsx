@@ -63,7 +63,7 @@ function MainApp() {
         {activeTab === 'chats' && <ChatListPage />}
         {activeTab === 'contacts' && <ContactsPage />}
         {activeTab === 'moments' && <MomentsPage />}
-        {activeTab === 'profile' && profileView === 'default' && <ProfilePage />}
+        {activeTab === 'profile' && profileView === 'default' && <ProfilePage onNavigate={(view) => setProfileView(view)} />}
         {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
       </div>
 
