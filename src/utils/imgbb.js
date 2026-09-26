@@ -1,4 +1,4 @@
-const IMGBB_API_KEY = '3968df9b249e7986e04256f3ede4df2f'
+const IMGBB_API_KEY = '4a2f70bc56858e3c4864cd7f058fa9f4'
 const TIMEOUT_MS = 8000
 
 async function compressToBlob(file, maxWidth = 600) {

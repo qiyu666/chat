@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
-const IMGBB_KEY = '3968df9b249e7986e04256f3ede4df2f'
+const IMGBB_KEY = '4a2f70bc56858e3c4864cd7f058fa9f4'
 const PASSWORD_SECRET = 'chat-mock-dev-secret'
 
 function hashPassword(password) {
