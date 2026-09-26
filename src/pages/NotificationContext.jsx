@@ -32,7 +32,8 @@ export function NotificationProvider({ children }) {
   useEffect(() => {
     if (!currentUserIdRef.current) return
 
-    const ws = new ChatWebSocket(currentUserIdRef.current)
+    // ChatWebSocket 是单例对象，不是类，直接用即可
+    const ws = ChatWebSocket
     wsRef.current = ws
 
     ws.setOnMessage((data) => {
@@ -44,10 +45,12 @@ export function NotificationProvider({ children }) {
       NotificationService.showNotification(preview, data.sender_name || '新消息')
     })
 
-    ws.connect()
+    // connect(chatId, token)：传入 token，否则 WSS 连接会被服务端拒绝
+    const token = localStorage.getItem('token')
+    ws.connect(currentUserIdRef.current, token)
 
     return () => {
-      ws.close()
+      ws.disconnect()
       wsRef.current = null
     }
   }, [activeChat])
