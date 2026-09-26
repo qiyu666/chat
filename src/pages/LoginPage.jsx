@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../AppContext'
 import { Eye, EyeOff, Loader } from 'lucide-react'
 
