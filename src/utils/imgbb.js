@@ -92,7 +92,7 @@ async function uploadToWorker(blob, token) {
 }
 
 /**
- * 图片上传：优先 imgbb（外部 CDN），超时/失败自动降级到 Cloudflare D1
+ * 图片上传：优先 D1（自家 Worker，国内快），失败时降级到 imgbb
  * 压缩后一般 < 500KB，D1 单行写入 1MB 限制内可覆盖绝大多数场景
  */
 export async function uploadImage(file, maxWidth = 600) {
@@ -100,11 +100,12 @@ export async function uploadImage(file, maxWidth = 600) {
   if (blob.size > 900 * 1024) {
     throw new Error('图片太大，请压缩后重新发送')
   }
+  // 优先走自家 D1（国内访问快）
   try {
-    return await uploadToImgbb(file, maxWidth)
-  } catch (e) {
-    console.warn('[img] imgbb 上传失败，降级到 D1:', e.message)
     const token = localStorage.getItem('token')
     return await uploadToWorker(blob, token)
+  } catch (e) {
+    console.warn('[img] D1 上传失败，降级到 imgbb:', e.message)
+    return await uploadToImgbb(file, maxWidth)
   }
 }
