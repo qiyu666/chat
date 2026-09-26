@@ -36,12 +36,16 @@ function MainApp() {
     )
   }
 
-  // 未登录显示登录/注册页
+  // 未登录 → 登录/注册页；已登录 → 主界面（直接渲染，无任何动画）
   if (!user) {
     return authView === 'login' ? (
-      <LoginPage onSwitch={() => setAuthView('register')} />
+      <div style={styles.page}>
+        <LoginPage onSwitch={() => setAuthView('register')} />
+      </div>
     ) : (
-      <RegisterPage onSwitch={() => setAuthView('login')} />
+      <div style={styles.page}>
+        <RegisterPage onSwitch={() => setAuthView('login')} />
+      </div>
     )
   }
 
@@ -142,6 +146,11 @@ export default function App() {
 }
 
 const styles = {
+  page: {
+    minHeight: '100vh',
+    minHeight: '100dvh',
+    background: '#0f0f1a'
+  },
   container: {
     display: 'flex',
     flexDirection: 'column',
