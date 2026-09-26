@@ -22,15 +22,6 @@ function MainApp() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
 
-  // 是否播放"展开进入"动画：仅在用户从无到有时播放一次（刷新恢复时不播放，直接显示）
-  const [playEnterAnim, setPlayEnterAnim] = useState(() => {
-    try {
-      return !localStorage.getItem('user')
-    } catch {
-      return true
-    }
-  })
-
   // 监听窗口大小变化
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 481)
@@ -49,9 +40,9 @@ function MainApp() {
   // 未登录显示登录/注册页
   if (!user) {
     return authView === 'login' ? (
-      <LoginPage onSwitch={() => setAuthView('register')} onLoginSuccess={() => setPlayEnterAnim(true)} />
+      <LoginPage onSwitch={() => setAuthView('register')} />
     ) : (
-      <RegisterPage onSwitch={() => setAuthView('login')} onLoginSuccess={() => setPlayEnterAnim(true)} />
+      <RegisterPage onSwitch={() => setAuthView('login')} />
     )
   }
 
@@ -63,17 +54,7 @@ function MainApp() {
   ]
 
   return (
-    <motion.div
-      initial={playEnterAnim ? { scaleY: 0, opacity: 0 } : { opacity: 1, scaleY: 1 }}
-      animate={{ scaleY: 1, opacity: 1 }}
-      transition={playEnterAnim ? {
-        type: 'spring',
-        stiffness: 120,
-        damping: 20,
-        duration: 0.5
-      } : { duration: 0 }}
-      style={styles.container}
-    >
+    <div style={styles.container}>
       {/* 主内容区 */}
       <div style={styles.content}>
         {activeTab === 'chats' && <ChatListPage />}
@@ -84,12 +65,7 @@ function MainApp() {
       </div>
 
       {/* 底部 Dock 导航栏 */}
-      <motion.div
-        style={styles.dock}
-        initial={playEnterAnim ? { y: 100 } : { y: 0 }}
-        animate={{ y: 0 }}
-        transition={playEnterAnim ? { delay: 0.3, type: 'spring', stiffness: 200, damping: 15 } : { duration: 0 }}
-      >
+      <div style={styles.dock}>
         {tabItems.map(tab => {
           const IconComp = tab.icon
           return (
@@ -113,15 +89,15 @@ function MainApp() {
             </button>
           )
         })}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
 
 function ChatIcon({ size, color }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   )
 }
