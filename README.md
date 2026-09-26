@@ -20,8 +20,8 @@
 | 客户端 | 技术栈 | 路径 | 说明 |
 |--------|--------|------|------|
 | 网页版 | React 19 + Vite 8 | `src/` | Cloudflare Pages 自动部署 |
-| Android 原生 | Kotlin + Jetpack Compose | `android-native/` | 纯原生，CI 自动构建 APK |
-| Android 套壳 | Capacitor + React | `android/` | Web 视图打包为 APK |
+| Android 原生 | Kotlin + Jetpack Compose | `android-native/` | 纯原生，CI 自动构建 APK（⏸️ 暂停，2027 年 1 月恢复） |
+| Android 套壳 | Capacitor + React | `android/` | Web 视图打包为 APK（✅ 当前采用） |
 
 ## 功能模块
 
@@ -105,13 +105,8 @@ chat/
 ### 网页 + Worker API（Git 自动部署）
 推送代码到 `main` 分支，Cloudflare Pages 会自动构建部署网页前端，Worker API 随代码一并更新。
 
-### Android 原生应用（CI 自动构建）
-推送代码到 `main` 分支，GitHub Actions 会自动构建 Debug APK 并上传为构建产物：
-
-```bash
-# 本地查看构建日志
-gh run watch --watch
-```
+### Android 原生应用（⏸️ 暂停，2027 年 1 月恢复）
+原生路线暂时搁置，期间以 Capacitor 套壳为主。推送 `main` 后 GitHub Actions 仍会自动构建 Debug APK（`build-android-native.yml`），2027 年 1 月恢复开发时可直接继续。
 
 ### Capacitor Android 应用（CI 自动构建）
 同理，`build-android.yml` 会构建带 WebView 的 APK。
