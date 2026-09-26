@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import ChatListPage from './pages/ChatListPage'
 import ContactsPage from './pages/ContactsPage'
 import MomentsPage from './pages/MomentsPage'
@@ -21,11 +21,13 @@ function MainApp() {
   const [authView, setAuthView] = useState('login')
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 481)
   const isAdmin = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')
-  const [hasAnimated, setHasAnimated] = useState(() => {
+
+  // 是否播放"展开进入"动画：仅在用户从无到有时播放一次（刷新恢复时不播放，直接显示）
+  const [playEnterAnim, setPlayEnterAnim] = useState(() => {
     try {
-      return !!localStorage.getItem('user')
+      return !localStorage.getItem('user')
     } catch {
-      return false
+      return true
     }
   })
 
@@ -36,15 +38,6 @@ function MainApp() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 登录成功后触发动画
-  const userChangedRef = useRef(false)
-  useEffect(() => {
-    if (user && !userChangedRef.current) {
-      userChangedRef.current = true
-      setHasAnimated(true)
-    }
-  }, [user])
-
   if (isAdmin) {
     return localStorage.getItem('adminToken') ? (
       <AdminPage onLogout={() => { localStorage.removeItem('adminToken'); window.location.href = '/' }} />
@@ -53,12 +46,12 @@ function MainApp() {
     )
   }
 
-  // 未登录显示登录页
+  // 未登录显示登录/注册页
   if (!user) {
     return authView === 'login' ? (
-      <LoginPage onSwitch={() => setAuthView('register')} />
+      <LoginPage onSwitch={() => setAuthView('register')} onLoginSuccess={() => setPlayEnterAnim(true)} />
     ) : (
-      <RegisterPage onSwitch={() => setAuthView('login')} />
+      <RegisterPage onSwitch={() => setAuthView('login')} onLoginSuccess={() => setPlayEnterAnim(true)} />
     )
   }
 
@@ -70,84 +63,65 @@ function MainApp() {
   ]
 
   return (
-    <AnimatePresence mode="wait">
-      {!hasAnimated ? (
-        <motion.div
-          key="login-page"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          style={styles.page}
-        >
-          <LoginPage onSwitch={() => setAuthView('register')} />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="main-app"
-          initial={{ scaleY: 0, opacity: 0 }}
-          animate={{ scaleY: 1, opacity: 1 }}
-          exit={{ scaleY: 0, opacity: 0 }}
-          transition={{
-            type: 'spring',
-            stiffness: 120,
-            damping: 20,
-            duration: 0.5
-          }}
-          style={styles.container}
-        >
-          {/* 主内容区 */}
-          <div style={styles.content}>
-            {activeTab === 'chats' && <ChatListPage />}
-            {activeTab === 'contacts' && <ContactsPage />}
-            {activeTab === 'moments' && <MomentsPage />}
-            {activeTab === 'profile' && profileView === 'default' && <ProfilePage />}
-            {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
-          </div>
+    <motion.div
+      initial={playEnterAnim ? { scaleY: 0, opacity: 0 } : { opacity: 1, scaleY: 1 }}
+      animate={{ scaleY: 1, opacity: 1 }}
+      transition={playEnterAnim ? {
+        type: 'spring',
+        stiffness: 120,
+        damping: 20,
+        duration: 0.5
+      } : { duration: 0 }}
+      style={styles.container}
+    >
+      {/* 主内容区 */}
+      <div style={styles.content}>
+        {activeTab === 'chats' && <ChatListPage />}
+        {activeTab === 'contacts' && <ContactsPage />}
+        {activeTab === 'moments' && <MomentsPage />}
+        {activeTab === 'profile' && profileView === 'default' && <ProfilePage />}
+        {activeTab === 'profile' && profileView === 'transactions' && <TransactionPage onBack={() => setProfileView('default')} />}
+      </div>
 
-          {/* 底部 Dock 导航栏 */}
-          <motion.div
-            style={{
-              ...styles.dock,
-              display: 'flex'
-            }}
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 15 }}
-          >
-            {tabItems.map(tab => {
-              const IconComp = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    ...styles.dockItem,
-                    ...(activeTab === tab.id ? styles.dockItemActive : {})
-                  }}
-                >
-                  <IconComp size={24} color={activeTab === tab.id ? '#e94560' : '#6c6c80'} />
-                  <span style={{
-                    fontSize: 11,
-                    color: activeTab === tab.id ? '#e94560' : '#6c6c80',
-                    fontWeight: activeTab === tab.id ? 600 : 400,
-                    marginTop: 4
-                  }}>
-                    {tab.label}
-                  </span>
-                </button>
-              )
-            })}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+      {/* 底部 Dock 导航栏 */}
+      <motion.div
+        style={styles.dock}
+        initial={playEnterAnim ? { y: 100 } : { y: 0 }}
+        animate={{ y: 0 }}
+        transition={playEnterAnim ? { delay: 0.3, type: 'spring', stiffness: 200, damping: 15 } : { duration: 0 }}
+      >
+        {tabItems.map(tab => {
+          const IconComp = tab.icon
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                ...styles.dockItem,
+                ...(activeTab === tab.id ? styles.dockItemActive : {})
+              }}
+            >
+              <IconComp size={24} color={activeTab === tab.id ? '#e94560' : '#6c6c80'} />
+              <span style={{
+                fontSize: 11,
+                color: activeTab === tab.id ? '#e94560' : '#6c6c80',
+                fontWeight: activeTab === tab.id ? 600 : 400,
+                marginTop: 4
+              }}>
+                {tab.label}
+              </span>
+            </button>
+          )
+        })}
+      </motion.div>
+    </motion.div>
   )
 }
 
 function ChatIcon({ size, color }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      <path d="M21 15a2 2 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   )
 }
@@ -193,10 +167,6 @@ export default function App() {
 }
 
 const styles = {
-  page: {
-    minHeight: '100vh',
-    background: '#0f0f1a'
-  },
   container: {
     display: 'flex',
     flexDirection: 'column',

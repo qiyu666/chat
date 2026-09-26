@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useApp } from '../AppContext'
 import { Eye, EyeOff, Loader } from 'lucide-react'
 
-export default function LoginPage({ onSwitch }) {
+export default function LoginPage({ onSwitch, onLoginSuccess }) {
   const { login } = useApp()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +20,9 @@ export default function LoginPage({ onSwitch }) {
     }
     setLoading(true)
     const result = await login(username.trim(), password)
+    if (result.success) {
+      onLoginSuccess?.()
+    }
     setLoading(false)
     if (!result.success) {
       setError(result.error || '登录失败')

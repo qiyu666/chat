@@ -3,7 +3,7 @@ import { useApp } from '../AppContext'
 import { Eye, EyeOff } from 'lucide-react'
 import api from '../api'
 
-export default function RegisterPage({ onSwitch }) {
+export default function RegisterPage({ onSwitch, onLoginSuccess }) {
   const { register, updatePaymentPasswordStatus, loading, user } = useApp()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -43,6 +43,7 @@ export default function RegisterPage({ onSwitch }) {
       setError(result.error || '注册失败')
     } else {
       setRegistered(true)
+      onLoginSuccess?.()
     }
   }
 
