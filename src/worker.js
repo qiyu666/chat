@@ -1,8 +1,10 @@
 const encoder = new TextEncoder()
 
 function hashPassword(password, secret) {
-  const data = encoder.encode(password + secret + '_salt')
-  return btoa(String.fromCharCode(...data))
+  const data = new TextEncoder().encode(password + secret + '_salt')
+  let bin = ''
+  for (let i = 0; i < data.length; i++) bin += String.fromCharCode(data[i])
+  return btoa(bin)
 }
 
 function generateId() {
@@ -317,7 +319,15 @@ async function handleRequest(req, env) {
       const { data, contentType } = body
       if (!data) return respondError('图片数据不能为空')
       const id = generateId()
-      const raw = Buffer.from(data, 'base64')
+      // base64 解码为 Uint8Array（Worker 无 Node Buffer；atob 结果逐字符填充）
+      let raw
+      if (typeof atob === 'function') {
+        const bin = atob(data)
+        raw = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) raw[i] = bin.charCodeAt(i)
+      } else {
+        raw = new Uint8Array(Buffer.from(data, 'base64'))
+      }
       if (raw.length > 1048576) return respondError('图片大小超过 1MB 限制')
       await DB.prepare('INSERT INTO images (id, data, content_type) VALUES (?, ?, ?)').bind(id, raw, contentType || 'image/jpeg').run()
       return respond({ url: `/api/images/${id}` })
